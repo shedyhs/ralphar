@@ -72,8 +72,7 @@ run_planner() {
     You MUST plan this specific task instead of picking from features.json."
   fi
 
-  local output
-  output=$(claude --permission-mode bypassPermissions -p "@PRD.md @features.json \
+  claude --permission-mode bypassPermissions -p "@PRD.md @features.json \
   You are the PLANNER. Your job: \
   1. Read the PRD and features.json. The SINGLE highest-priority uncompleted task is the first entry in features.json where passes is false. \
   $task_prompt \
@@ -88,10 +87,9 @@ run_planner() {
   $feedback_prompt \
   \
   ONLY write to .ralph/context.md and .ralph/plan.md. Do NOT implement any code. \
-  If ALL entries in features.json have passes: true, write ONLY this to .ralph/plan.md: PRD_COMPLETE")
+  If ALL entries in features.json have passes: true, write ONLY this to .ralph/plan.md: PRD_COMPLETE"
 
   log "PLANNER done."
-  echo "$output"
 }
 
 run_validator() {
@@ -137,8 +135,7 @@ run_implementer() {
     Also read @.ralph/test-report.md for test results."
   fi
 
-  local output
-  output=$(claude --permission-mode bypassPermissions -p "@.ralph/plan.md \
+  claude --permission-mode bypassPermissions -p "@.ralph/plan.md \
   You are the IMPLEMENTER. Your job: \
   1. Read the approved plan in .ralph/plan.md. \
   2. Implement the code changes described in the plan. \
@@ -153,17 +150,15 @@ run_implementer() {
   $review_prompt \
   \
   Follow the plan precisely. Do NOT add features not in the plan. \
-  Do NOT commit. Do NOT modify PRD.md or features.json.")
+  Do NOT commit. Do NOT modify PRD.md or features.json."
 
   log "IMPLEMENTER done."
-  echo "$output"
 }
 
 run_e2e_writer() {
   log "E2E WRITER starting..."
 
-  local output
-  output=$(claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md \
+  claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md \
   You are the E2E TEST WRITER. Your job: \
   1. Read the plan (.ralph/plan.md) and what was implemented (.ralph/implementation.md). \
   2. Write end-to-end tests that verify the feature works from a user perspective. \
@@ -176,17 +171,15 @@ run_e2e_writer() {
      - What user flows are covered \
   \
   Do NOT modify any source code. ONLY write e2e tests. \
-  Do NOT commit. Do NOT modify PRD.md or features.json.")
+  Do NOT commit. Do NOT modify PRD.md or features.json."
 
   log "E2E WRITER done."
-  echo "$output"
 }
 
 run_tester() {
   log "TESTER starting..."
 
-  local output
-  output=$(claude --permission-mode bypassPermissions -p "@.ralph/implementation.md \
+  claude --permission-mode bypassPermissions -p "@.ralph/implementation.md \
   You are the TESTER. Your job: \
   1. Read what was implemented in .ralph/implementation.md. \
   2. Run ALL four feedback loops: \
@@ -209,7 +202,7 @@ run_tester() {
      [output if failed] \
   \
   Do NOT fix any code. Do NOT modify any files except .ralph/test-report.md. \
-  Just run the tests and report results.")
+  Just run the tests and report results."
 
   log "TESTER done."
   if [ -f ".ralph/test-report.md" ]; then
@@ -218,7 +211,6 @@ run_tester() {
       log "  $line"
     done
   fi
-  echo "$output"
 }
 
 run_reviewer_frontend() {
@@ -312,8 +304,7 @@ run_reviewer_backend() {
 run_committer() {
   log "COMMITTER starting..."
 
-  local output
-  output=$(claude --permission-mode bypassPermissions -p "@PRD.md @features.json @.ralph/plan.md @.ralph/implementation.md \
+  claude --permission-mode bypassPermissions -p "@PRD.md @features.json @.ralph/plan.md @.ralph/implementation.md \
   You are the COMMITTER. Your job: \
   1. Read the plan (.ralph/plan.md) and implementation (.ralph/implementation.md). \
   2. Update PRD.md: mark the completed task checkboxes as [x] for what was done. \
@@ -327,10 +318,9 @@ run_committer() {
      Every task from the PRD should already have an entry in features.json. \
   4. Stage all changed files and commit with a descriptive message. \
   \
-  Do NOT modify any source code. ONLY update PRD.md, features.json, and commit.")
+  Do NOT modify any source code. ONLY update PRD.md, features.json, and commit."
 
   log "COMMITTER done."
-  echo "$output"
 }
 
 # === MAIN LOOP ===
