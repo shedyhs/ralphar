@@ -195,8 +195,13 @@ run_reviewer_frontend() {
   1. Read the approved plan (.ralph/plan.md). \
   2. Read what was implemented (.ralph/implementation.md). \
   3. Read the test results (.ralph/test-report.md). \
-  4. Run 'git diff' to see the actual code changes. Focus ONLY on frontend code (components, pages, styles, hooks, client-side logic). \
-  5. Evaluate against these criteria: \
+  4. Run 'git diff' to see the actual code changes. \
+  5. First, determine if there is ANY frontend code in this change (components, pages, styles, hooks, client-side logic, JSX/TSX files). \
+     If there is NO frontend code, write to .ralph/review-frontend.md: \
+     VERDICT: APPROVED \
+     No frontend changes in this iteration. \
+     Then stop. \
+  6. If there IS frontend code, evaluate against these criteria: \
      a. PLAN ADHERENCE: Does the frontend code implement exactly what the plan specified? \
      b. ACCESSIBILITY (a11y): Are semantic HTML elements used? Do interactive elements have labels, ARIA attributes, roles, and keyboard support? Is color contrast sufficient? \
      c. PERFORMANCE: Any unnecessary re-renders? Missing useMemo/useCallback? Large bundle imports? Unoptimized images? \
@@ -206,7 +211,7 @@ run_reviewer_frontend() {
      g. SECURITY: Any XSS risks? Is user input sanitized before rendering? Dangerously set innerHTML? \
      h. TEST COVERAGE: Do the unit and e2e tests cover UI interactions, edge cases, and error states? \
      i. PROJECT CONVENTIONS: Does the code follow existing component patterns, naming, and file structure? \
-  6. Write your review to .ralph/review-frontend.md. For each criterion, give a brief assessment. \
+  7. Write your review to .ralph/review-frontend.md. For each criterion, give a brief assessment. \
   \
   Your file MUST start with exactly one of these lines: \
   VERDICT: APPROVED \
@@ -234,8 +239,13 @@ run_reviewer_backend() {
   1. Read the approved plan (.ralph/plan.md). \
   2. Read what was implemented (.ralph/implementation.md). \
   3. Read the test results (.ralph/test-report.md). \
-  4. Run 'git diff' to see the actual code changes. Focus ONLY on backend code (API routes, server actions, database, middleware, server-side logic). \
-  5. Evaluate against these criteria: \
+  4. Run 'git diff' to see the actual code changes. \
+  5. First, determine if there is ANY backend code in this change (API routes, server actions, database, middleware, server-side logic). \
+     If there is NO backend code, write to .ralph/review-backend.md: \
+     VERDICT: APPROVED \
+     No backend changes in this iteration. \
+     Then stop. \
+  6. If there IS backend code, evaluate against these criteria: \
      a. PLAN ADHERENCE: Does the backend code implement exactly what the plan specified? \
      b. SECURITY: SQL injection, auth bypass, CSRF, improper input validation, secrets exposure, OWASP top 10? \
      c. PERFORMANCE: N+1 queries, missing indexes, expensive operations in loops, missing caching, unoptimized DB calls? \
@@ -245,13 +255,9 @@ run_reviewer_backend() {
      g. READABILITY: Are function and variable names clear? Is complex logic commented? \
      h. TEST COVERAGE: Do unit tests cover API logic, edge cases, error paths, and validation? \
      i. PROJECT CONVENTIONS: Does the code follow existing API patterns, naming, and file structure? \
-  6. Write your review to .ralph/review-backend.md. For each criterion, give a brief assessment. \
+  7. Write your review to .ralph/review-backend.md. For each criterion, give a brief assessment. \
   \
-  If there is NO backend code in this change, write to .ralph/review-backend.md: \
-  VERDICT: APPROVED \
-  No backend changes in this iteration. \
-  \
-  Otherwise, your file MUST start with exactly one of these lines: \
+  Your file MUST start with exactly one of these lines: \
   VERDICT: APPROVED \
   or \
   VERDICT: CHANGES_REQUESTED \
