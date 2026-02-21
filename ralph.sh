@@ -186,27 +186,27 @@ run_tester() {
   echo "$output"
 }
 
-run_reviewer() {
-  log "REVIEWER starting..."
+run_reviewer_frontend() {
+  log "REVIEWER FRONTEND starting..."
 
   local output
   output=$(claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
-  You are the REVIEWER. Your job: \
+  You are the FRONTEND REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
   2. Read what was implemented (.ralph/implementation.md). \
   3. Read the test results (.ralph/test-report.md). \
-  4. Run 'git diff' to see the actual code changes. \
-  5. Evaluate the code against these criteria: \
-     a. PLAN ADHERENCE: Does the code implement exactly what the plan specified? \
-     b. TEST RESULTS: Did all tests (unit, e2e, typecheck, build, lint) pass? \
-     c. CODE SMELLS / DRY: Is there duplicated logic? Could shared abstractions reduce repetition? \
-     d. READABILITY: Are names clear? Is the code easy to follow? Are complex sections commented? \
-     e. SECURITY: Any XSS, injection, or other OWASP vulnerabilities? Is user input sanitized? \
-     f. PERFORMANCE: Any unnecessary re-renders, N+1 queries, expensive operations in loops, or missing memoization? \
-     g. ACCESSIBILITY (a11y): Are semantic HTML elements used? Do interactive elements have labels, roles, and keyboard support? \
-     h. TEST COVERAGE: Do the unit and e2e tests cover the main flows, edge cases, and error states? \
-     i. PROJECT CONVENTIONS: Does the code follow existing patterns, naming conventions, and file structure in the project? \
-  6. Write your review to .ralph/review.md. For each criterion, give a brief assessment. \
+  4. Run 'git diff' to see the actual code changes. Focus ONLY on frontend code (components, pages, styles, hooks, client-side logic). \
+  5. Evaluate against these criteria: \
+     a. PLAN ADHERENCE: Does the frontend code implement exactly what the plan specified? \
+     b. ACCESSIBILITY (a11y): Are semantic HTML elements used? Do interactive elements have labels, ARIA attributes, roles, and keyboard support? Is color contrast sufficient? \
+     c. PERFORMANCE: Any unnecessary re-renders? Missing useMemo/useCallback? Large bundle imports? Unoptimized images? \
+     d. UX QUALITY: Is the UI responsive? Are loading/error/empty states handled? Is feedback clear to the user? \
+     e. CODE SMELLS / DRY: Is there duplicated component logic? Should shared components or hooks be extracted? \
+     f. READABILITY: Are component and prop names clear? Is JSX easy to follow? \
+     g. SECURITY: Any XSS risks? Is user input sanitized before rendering? Dangerously set innerHTML? \
+     h. TEST COVERAGE: Do the unit and e2e tests cover UI interactions, edge cases, and error states? \
+     i. PROJECT CONVENTIONS: Does the code follow existing component patterns, naming, and file structure? \
+  6. Write your review to .ralph/review-frontend.md. For each criterion, give a brief assessment. \
   \
   Your file MUST start with exactly one of these lines: \
   VERDICT: APPROVED \
@@ -215,13 +215,56 @@ run_reviewer() {
   \
   If CHANGES_REQUESTED, list specific issues with file paths and line numbers. \
   If tests failed, ALWAYS request changes. \
-  Do NOT modify any code. ONLY write to .ralph/review.md.")
+  Do NOT modify any code. ONLY write to .ralph/review-frontend.md.")
 
   local verdict="UNKNOWN"
-  if [ -f ".ralph/review.md" ]; then
-    verdict=$(head -1 ".ralph/review.md")
+  if [ -f ".ralph/review-frontend.md" ]; then
+    verdict=$(head -1 ".ralph/review-frontend.md")
   fi
-  log "REVIEWER done → $verdict"
+  log "REVIEWER FRONTEND done → $verdict"
+  echo "$output"
+}
+
+run_reviewer_backend() {
+  log "REVIEWER BACKEND starting..."
+
+  local output
+  output=$(claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
+  You are the BACKEND REVIEWER. Your job: \
+  1. Read the approved plan (.ralph/plan.md). \
+  2. Read what was implemented (.ralph/implementation.md). \
+  3. Read the test results (.ralph/test-report.md). \
+  4. Run 'git diff' to see the actual code changes. Focus ONLY on backend code (API routes, server actions, database, middleware, server-side logic). \
+  5. Evaluate against these criteria: \
+     a. PLAN ADHERENCE: Does the backend code implement exactly what the plan specified? \
+     b. SECURITY: SQL injection, auth bypass, CSRF, improper input validation, secrets exposure, OWASP top 10? \
+     c. PERFORMANCE: N+1 queries, missing indexes, expensive operations in loops, missing caching, unoptimized DB calls? \
+     d. ERROR HANDLING: Are errors caught and handled gracefully? Are appropriate HTTP status codes returned? Are errors logged? \
+     e. DATA VALIDATION: Is input validated and sanitized at API boundaries? Are types enforced? \
+     f. CODE SMELLS / DRY: Is there duplicated logic? Should shared utilities or middleware be extracted? \
+     g. READABILITY: Are function and variable names clear? Is complex logic commented? \
+     h. TEST COVERAGE: Do unit tests cover API logic, edge cases, error paths, and validation? \
+     i. PROJECT CONVENTIONS: Does the code follow existing API patterns, naming, and file structure? \
+  6. Write your review to .ralph/review-backend.md. For each criterion, give a brief assessment. \
+  \
+  If there is NO backend code in this change, write to .ralph/review-backend.md: \
+  VERDICT: APPROVED \
+  No backend changes in this iteration. \
+  \
+  Otherwise, your file MUST start with exactly one of these lines: \
+  VERDICT: APPROVED \
+  or \
+  VERDICT: CHANGES_REQUESTED \
+  \
+  If CHANGES_REQUESTED, list specific issues with file paths and line numbers. \
+  If tests failed, ALWAYS request changes. \
+  Do NOT modify any code. ONLY write to .ralph/review-backend.md.")
+
+  local verdict="UNKNOWN"
+  if [ -f ".ralph/review-backend.md" ]; then
+    verdict=$(head -1 ".ralph/review-backend.md")
+  fi
+  log "REVIEWER BACKEND done → $verdict"
   echo "$output"
 }
 
@@ -305,13 +348,36 @@ for ((i=1; i<=$1; i++)); do
     run_implementer "$impl_attempt"
     run_e2e_writer
     run_tester
-    run_reviewer
 
-    if grep -q "VERDICT: APPROVED" .ralph/review.md 2>/dev/null; then
-      log "CODE APPROVED (attempt $impl_attempt) ✓"
+    # Run both reviewers in parallel
+    log "Running frontend and backend reviewers in parallel..."
+    run_reviewer_frontend &
+    pid_fe=$!
+    run_reviewer_backend &
+    pid_be=$!
+    wait $pid_fe $pid_be
+
+    # Both must approve
+    fe_approved=false
+    be_approved=false
+    if grep -q "VERDICT: APPROVED" .ralph/review-frontend.md 2>/dev/null; then
+      fe_approved=true
+    fi
+    if grep -q "VERDICT: APPROVED" .ralph/review-backend.md 2>/dev/null; then
+      be_approved=true
+    fi
+
+    if [ "$fe_approved" = true ] && [ "$be_approved" = true ]; then
+      log "CODE APPROVED by both reviewers (attempt $impl_attempt) ✓"
       break
     else
-      log "CODE REJECTED (attempt $impl_attempt) ✗"
+      log "CODE REJECTED (FE=$fe_approved BE=$be_approved, attempt $impl_attempt) ✗"
+      # Merge both reviews into review.md so implementer can read them
+      cat .ralph/review-frontend.md > .ralph/review.md 2>/dev/null || true
+      echo "" >> .ralph/review.md
+      echo "---" >> .ralph/review.md
+      echo "" >> .ralph/review.md
+      cat .ralph/review-backend.md >> .ralph/review.md 2>/dev/null || true
       impl_attempt=$((impl_attempt + 1))
     fi
   done
