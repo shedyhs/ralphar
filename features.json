@@ -36,5 +36,33 @@
       "Updated list item JSX with checkbox, conditional strikethrough text, and red Delete button",
       "Flex layout (flex items-center gap-3) for horizontal alignment of checkbox, text, and delete button"
     ]
+  },
+  {
+    "id": "P3",
+    "title": "Dark mode",
+    "passes": true,
+    "completedAt": "2026-02-21",
+    "summary": "Users can toggle between light and dark mode via a button. All UI elements update with appropriate dark color variants using Tailwind CSS v4 class-based dark mode.",
+    "filesModified": [
+      "app/globals.css",
+      "app/page.tsx",
+      "app/page.test.tsx",
+      "jest.config.ts",
+      "jest.setup.ts",
+      "package.json",
+      "e2e/dark-mode.spec.ts",
+      "e2e/todo-list.spec.ts",
+      "playwright.config.ts"
+    ],
+    "details": [
+      "Added @custom-variant dark directive in globals.css for class-based dark mode with body dark styles",
+      "Added darkMode state with useEffect initialization to avoid SSR hydration mismatch",
+      "Toggle button in top-right with accessible aria-label showing Dark/Light label",
+      "Added dark: variant classes to all themed elements (input, buttons, list items, text)",
+      "11 unit tests covering dark mode toggle and existing todo functionality",
+      "14 Playwright e2e tests covering toggle, element styling, and full user journeys",
+      "11 Playwright e2e tests for todo list flows",
+      "Configured Jest with next/jest and testPathIgnorePatterns to exclude e2e/"
+    ]
   }
 ]

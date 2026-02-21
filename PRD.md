@@ -34,9 +34,9 @@ A minimal React + TypeScript todo list app with local state. No backend, no auth
 ## Requirements
 
 ### [P0] Project setup
-- [ ] Initialize Next.js project with TypeScript
-- [ ] Configure ESLint and basic project structure
-- [ ] Add Tailwind CSS for styling
+- [x] Initialize Next.js project with TypeScript
+- [x] Configure ESLint and basic project structure
+- [x] Add Tailwind CSS for styling
 
 ### [P1] Add and display tasks
 - [x] User can type a task and press Enter or click a button to add it
@@ -47,3 +47,8 @@ A minimal React + TypeScript todo list app with local state. No backend, no auth
 - [x] User can click a checkbox to mark a task as done
 - [x] Completed tasks show with strikethrough styling
 - [x] User can click a delete button to remove a task
+
+### [P3] Dark mode
+- [x] User can toggle between light and dark mode via a button
+- [x] All UI elements update with appropriate dark color variants
+- [x] Toggle button shows accessible label and current mode indicator
