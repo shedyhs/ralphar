@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "id": "P1",
+    "title": "Add and display tasks",
+    "completedAt": "2026-02-21",
+    "summary": "Users can type a task and press Enter or click Add to create it. Tasks appear in a list below the input. Empty or whitespace-only input is rejected.",
+    "filesModified": ["app/page.tsx"],
+    "details": [
+      "Added client component with useState for tasks and input, useRef for unique ID generation",
+      "Form-based input with text field and Add button — Enter and click both submit via onSubmit",
+      "Task list rendered as ul with unique keys, empty state message when no tasks exist",
+      "Styled with Tailwind: centered layout, input with focus ring, blue button, bordered list items"
+    ]
+  }
+]

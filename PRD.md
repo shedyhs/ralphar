@@ -39,9 +39,9 @@ A minimal React + TypeScript todo list app with local state. No backend, no auth
 - [ ] Add Tailwind CSS for styling
 
 ### [P1] Add and display tasks
-- [ ] User can type a task and press Enter or click a button to add it
-- [ ] Tasks appear in a list below the input
-- [ ] Empty input should not create a task
+- [x] User can type a task and press Enter or click a button to add it
+- [x] Tasks appear in a list below the input
+- [x] Empty input should not create a task
 
 ### [P2] Complete and delete tasks
 - [ ] User can click a checkbox to mark a task as done
