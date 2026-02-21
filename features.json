@@ -11,5 +11,19 @@
       "Task list rendered as ul with unique keys, empty state message when no tasks exist",
       "Styled with Tailwind: centered layout, input with focus ring, blue button, bordered list items"
     ]
+  },
+  {
+    "id": "P2",
+    "title": "Complete and delete tasks",
+    "completedAt": "2026-02-21",
+    "summary": "Users can toggle tasks as complete via checkbox (strikethrough styling) and delete tasks with a button. All changes are in the single page component.",
+    "filesModified": ["app/page.tsx"],
+    "details": [
+      "Extended Task interface with completed boolean field",
+      "Added toggleTask handler that maps over tasks and flips completed for matching ID",
+      "Added deleteTask handler that filters out the task by ID",
+      "Updated list item JSX with checkbox, conditional strikethrough text, and red Delete button",
+      "Flex layout (flex items-center gap-3) for horizontal alignment of checkbox, text, and delete button"
+    ]
   }
 ]

@@ -44,6 +44,6 @@ A minimal React + TypeScript todo list app with local state. No backend, no auth
 - [x] Empty input should not create a task
 
 ### [P2] Complete and delete tasks
-- [ ] User can click a checkbox to mark a task as done
-- [ ] Completed tasks show with strikethrough styling
-- [ ] User can click a delete button to remove a task
+- [x] User can click a checkbox to mark a task as done
+- [x] Completed tasks show with strikethrough styling
+- [x] User can click a delete button to remove a task
