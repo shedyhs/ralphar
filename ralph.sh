@@ -191,7 +191,21 @@ for ((i=1; i<=$1; i++)); do
     fi
   done
 
-  # IMPLEMENTATION PHASE (to be added)
+  # === IMPLEMENTATION PHASE ===
+  impl_attempt=1
+  while true; do
+    run_implementer "$impl_attempt"
+    run_tester
+    run_reviewer
+
+    if grep -q "VERDICT: APPROVED" .ralph/review.md 2>/dev/null; then
+      echo "--- CODE APPROVED (attempt $impl_attempt) ---"
+      break
+    else
+      echo "--- CODE REJECTED (attempt $impl_attempt) ---"
+      impl_attempt=$((impl_attempt + 1))
+    fi
+  done
 
   # COMMIT PHASE (to be added)
 
