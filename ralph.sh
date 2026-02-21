@@ -46,10 +46,12 @@ run_planner() {
 run_validator() {
   local id=$1
   local focus=$2
-  echo "--- VALIDATOR ${id^^} ($focus) ---"
+  local id_upper
+  id_upper=$(echo "$id" | tr '[:lower:]' '[:upper:]')
+  echo "--- VALIDATOR $id_upper ($focus) ---"
 
   claude --permission-mode acceptEdits -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
-  You are VALIDATOR ${id^^}. Your focus: $focus. \
+  You are VALIDATOR $id_upper. Your focus: $focus. \
   \
   Read the plan in .ralph/plan.md and the codebase context in .ralph/context.md. \
   Evaluate the plan strictly through your lens ($focus). \
