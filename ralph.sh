@@ -10,10 +10,32 @@ cleanup() {
 trap cleanup INT TERM
 
 RALPH_DIR=".ralph"
+LOOPS=1
+TASK=""
 
-if [ -z "$1" ]; then
-  echo "Usage: $0 <iterations>"
+usage() {
+  echo "Usage: $0 --loop=<N> [--task=\"<description>\"]"
+  echo ""
+  echo "  --loop=N    Number of iterations to run (required)"
+  echo "  --task=STR  Specific task to implement (optional, overrides PRD picking)"
   exit 1
+}
+
+if [ $# -eq 0 ]; then
+  usage
+fi
+
+for arg in "$@"; do
+  case $arg in
+    --loop=*) LOOPS="${arg#*=}" ;;
+    --task=*) TASK="${arg#*=}" ;;
+    *) echo "Unknown argument: $arg"; usage ;;
+  esac
+done
+
+if [ -z "$LOOPS" ] || [ "$LOOPS" -lt 1 ] 2>/dev/null; then
+  echo "Error: --loop must be a positive number"
+  usage
 fi
 
 log() {
@@ -38,10 +60,17 @@ run_planner() {
     Carefully read ALL feedback and adjust your plan to address every issue raised."
   fi
 
+  local task_prompt=""
+  if [ -n "$TASK" ]; then
+    task_prompt="THE USER HAS SPECIFIED A TASK: $TASK \
+    You MUST plan this specific task instead of picking from features.json."
+  fi
+
   local output
   output=$(claude --permission-mode bypassPermissions -p "@PRD.md @features.json \
   You are the PLANNER. Your job: \
   1. Read the PRD and features.json. The SINGLE highest-priority uncompleted task is the first entry in features.json where passes is false. \
+  $task_prompt \
   2. Use the Task tool with subagent_type=Explore to dispatch 2-3 parallel subagents to search the codebase for relevant context (existing files, patterns, dependencies). \
   3. Write your findings to .ralph/context.md (what you found in the codebase). \
   4. Write a detailed implementation plan to .ralph/plan.md with: \
@@ -299,7 +328,7 @@ run_committer() {
 }
 
 # === MAIN LOOP ===
-for ((i=1; i<=$1; i++)); do
+for ((i=1; i<=LOOPS; i++)); do
   echo ""
   echo "========================================="
   log "ITERATION $i"
