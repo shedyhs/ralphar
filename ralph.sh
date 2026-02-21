@@ -107,17 +107,43 @@ run_implementer() {
   You are the IMPLEMENTER. Your job: \
   1. Read the approved plan in .ralph/plan.md. \
   2. Implement the code changes described in the plan. \
-  3. Write a summary of what you implemented to .ralph/implementation.md with: \
+  3. Write unit tests for the code you implemented. \
+  4. Run the unit tests with 'npm run test' and fix any failures before finishing. \
+  5. Write a summary of what you implemented to .ralph/implementation.md with: \
      - Files created or modified \
+     - Unit tests created or modified \
      - Key decisions made during implementation \
      - Anything that deviated from the plan and why \
   \
   $review_prompt \
   \
   Follow the plan precisely. Do NOT add features not in the plan. \
-  Do NOT run tests. Do NOT commit. Do NOT modify PRD.md or features.json.")
+  Do NOT commit. Do NOT modify PRD.md or features.json.")
 
   log "IMPLEMENTER done."
+  echo "$output"
+}
+
+run_e2e_writer() {
+  log "E2E WRITER starting..."
+
+  local output
+  output=$(claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md \
+  You are the E2E TEST WRITER. Your job: \
+  1. Read the plan (.ralph/plan.md) and what was implemented (.ralph/implementation.md). \
+  2. Write end-to-end tests that verify the feature works from a user perspective. \
+  3. Use the existing e2e test framework in the project (Playwright, Cypress, etc.). \
+     If no e2e framework exists, set up Playwright. \
+  4. The e2e tests should cover the user journeys described in the plan. \
+  5. Run the e2e tests to make sure they pass. Fix any failures. \
+  6. Append to .ralph/implementation.md a section '## E2E Tests' listing: \
+     - E2e test files created or modified \
+     - What user flows are covered \
+  \
+  Do NOT modify any source code. ONLY write e2e tests. \
+  Do NOT commit. Do NOT modify PRD.md or features.json.")
+
+  log "E2E WRITER done."
   echo "$output"
 }
 
@@ -272,6 +298,7 @@ for ((i=1; i<=$1; i++)); do
   impl_attempt=1
   while true; do
     run_implementer "$impl_attempt"
+    run_e2e_writer
     run_tester
     run_reviewer
 
