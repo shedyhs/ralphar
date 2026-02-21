@@ -1,32 +1,33 @@
 #!/bin/bash
 set -e
 
+RALPH_DIR=".ralph"
+
 if [ -z "$1" ]; then
   echo "Usage: $0 <iterations>"
   exit 1
 fi
 
+clean_ralph() {
+  rm -rf "$RALPH_DIR"
+  mkdir -p "$RALPH_DIR"
+}
+
+# === ROLE FUNCTIONS (to be added) ===
+
+# === MAIN LOOP ===
 for ((i=1; i<=$1; i++)); do
-  result=$(claude --permission-mode acceptEdits -p "@PRD.md @features.json \
-  1. Find the highest-priority task and implement it. \
-  2. Run your tests and type checks. \
-  3. Update the PRD with what was done. \
-  4. Append your progress to features.json. \
-  5. Commit your changes. \
-  
-  Before committing, run ALL feedback loops: \
-  1. TypeScript: npm run typecheck (must pass with no errors) \
-  2. Tests: npm run test (must pass) \
-  3. Lint: npm run lint (must pass) \
-  Do NOT commit if any feedback loop fails. Fix issues first. \
+  echo "========================================="
+  echo "ITERATION $i"
+  echo "========================================="
 
-  ONLY WORK ON A SINGLE TASK. \
-  If the PRD is complete, output <promise>COMPLETE</promise>.")
+  clean_ralph
 
-  echo "$result"
+  # PLANNING PHASE (to be added)
 
-  if [[ "$result" == *"<promise>COMPLETE</promise>"* ]]; then
-    echo "PRD complete after $i iterations."
-    exit 0
-  fi
+  # IMPLEMENTATION PHASE (to be added)
+
+  # COMMIT PHASE (to be added)
+
+  echo "Iteration $i complete."
 done
