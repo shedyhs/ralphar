@@ -8,6 +8,10 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+log() {
+  echo "[$(date '+%H:%M:%S')] $*"
+}
+
 clean_ralph() {
   rm -rf "$RALPH_DIR"
   mkdir -p "$RALPH_DIR"
@@ -17,7 +21,7 @@ clean_ralph() {
 
 run_planner() {
   local attempt=$1
-  echo "--- PLANNER (attempt $attempt) ---"
+  log "PLANNER starting (attempt $attempt)..."
 
   local feedback_prompt=""
   if [ "$attempt" -gt 1 ]; then
@@ -26,7 +30,8 @@ run_planner() {
     Carefully read ALL feedback and adjust your plan to address every issue raised."
   fi
 
-  claude --permission-mode acceptEdits -p "@PRD.md @features.json \
+  local output
+  output=$(claude --permission-mode acceptEdits -p "@PRD.md @features.json \
   You are the PLANNER. Your job: \
   1. Read the PRD and identify the SINGLE highest-priority uncompleted task. \
   2. Use the Task tool with subagent_type=Explore to dispatch 2-3 parallel subagents to search the codebase for relevant context (existing files, patterns, dependencies). \
@@ -40,7 +45,10 @@ run_planner() {
   $feedback_prompt \
   \
   ONLY write to .ralph/context.md and .ralph/plan.md. Do NOT implement any code. \
-  If the PRD has no uncompleted tasks, write ONLY this to .ralph/plan.md: PRD_COMPLETE"
+  If the PRD has no uncompleted tasks, write ONLY this to .ralph/plan.md: PRD_COMPLETE")
+
+  log "PLANNER done."
+  echo "$output"
 }
 
 run_validator() {
@@ -48,9 +56,10 @@ run_validator() {
   local focus=$2
   local id_upper
   id_upper=$(echo "$id" | tr '[:lower:]' '[:upper:]')
-  echo "--- VALIDATOR $id_upper ($focus) ---"
+  log "VALIDATOR $id_upper starting..."
 
-  claude --permission-mode acceptEdits -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
+  local output
+  output=$(claude --permission-mode acceptEdits -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
   You are VALIDATOR $id_upper. Your focus: $focus. \
   \
   Read the plan in .ralph/plan.md and the codebase context in .ralph/context.md. \
@@ -64,12 +73,19 @@ run_validator() {
   \
   If CHANGES_REQUESTED, list specific issues that must be fixed. \
   Be concise and actionable. Do NOT rewrite the plan yourself. \
-  ONLY write to .ralph/validation-${id}.md. Do NOT modify any other file."
+  ONLY write to .ralph/validation-${id}.md. Do NOT modify any other file.")
+
+  local verdict="UNKNOWN"
+  if [ -f ".ralph/validation-${id}.md" ]; then
+    verdict=$(head -1 ".ralph/validation-${id}.md")
+  fi
+  log "VALIDATOR $id_upper done → $verdict"
+  echo "$output"
 }
 
 run_implementer() {
   local attempt=$1
-  echo "--- IMPLEMENTER (attempt $attempt) ---"
+  log "IMPLEMENTER starting (attempt $attempt)..."
 
   local review_prompt=""
   if [ "$attempt" -gt 1 ] && [ -f ".ralph/review.md" ]; then
@@ -78,7 +94,8 @@ run_implementer() {
     Also read @.ralph/test-report.md for test results."
   fi
 
-  claude --permission-mode acceptEdits -p "@.ralph/plan.md \
+  local output
+  output=$(claude --permission-mode acceptEdits -p "@.ralph/plan.md \
   You are the IMPLEMENTER. Your job: \
   1. Read the approved plan in .ralph/plan.md. \
   2. Implement the code changes described in the plan. \
@@ -90,13 +107,17 @@ run_implementer() {
   $review_prompt \
   \
   Follow the plan precisely. Do NOT add features not in the plan. \
-  Do NOT run tests. Do NOT commit. Do NOT modify PRD.md or features.json."
+  Do NOT run tests. Do NOT commit. Do NOT modify PRD.md or features.json.")
+
+  log "IMPLEMENTER done."
+  echo "$output"
 }
 
 run_tester() {
-  echo "--- TESTER ---"
+  log "TESTER starting..."
 
-  claude --permission-mode acceptEdits -p "@.ralph/implementation.md \
+  local output
+  output=$(claude --permission-mode acceptEdits -p "@.ralph/implementation.md \
   You are the TESTER. Your job: \
   1. Read what was implemented in .ralph/implementation.md. \
   2. Run ALL four feedback loops: \
@@ -119,13 +140,23 @@ run_tester() {
      [output if failed] \
   \
   Do NOT fix any code. Do NOT modify any files except .ralph/test-report.md. \
-  Just run the tests and report results."
+  Just run the tests and report results.")
+
+  log "TESTER done."
+  if [ -f ".ralph/test-report.md" ]; then
+    log "Test results:"
+    grep -E "^(TYPECHECK|BUILD|TESTS|LINT):" .ralph/test-report.md | while read -r line; do
+      log "  $line"
+    done
+  fi
+  echo "$output"
 }
 
 run_reviewer() {
-  echo "--- REVIEWER ---"
+  log "REVIEWER starting..."
 
-  claude --permission-mode acceptEdits -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
+  local output
+  output=$(claude --permission-mode acceptEdits -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
   You are the REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
   2. Read what was implemented (.ralph/implementation.md). \
@@ -145,42 +176,56 @@ run_reviewer() {
   \
   If CHANGES_REQUESTED, list specific issues with file paths and line numbers. \
   If tests failed, ALWAYS request changes. \
-  Do NOT modify any code. ONLY write to .ralph/review.md."
+  Do NOT modify any code. ONLY write to .ralph/review.md.")
+
+  local verdict="UNKNOWN"
+  if [ -f ".ralph/review.md" ]; then
+    verdict=$(head -1 ".ralph/review.md")
+  fi
+  log "REVIEWER done → $verdict"
+  echo "$output"
 }
 
 run_committer() {
-  echo "--- COMMITTER ---"
+  log "COMMITTER starting..."
 
-  claude --permission-mode acceptEdits -p "@PRD.md @features.json @.ralph/plan.md @.ralph/implementation.md \
+  local output
+  output=$(claude --permission-mode acceptEdits -p "@PRD.md @features.json @.ralph/plan.md @.ralph/implementation.md \
   You are the COMMITTER. Your job: \
   1. Read the plan (.ralph/plan.md) and implementation (.ralph/implementation.md). \
   2. Update PRD.md: mark the completed task as done. \
   3. Update features.json: append an entry documenting what was implemented. \
   4. Stage all changed files and commit with a descriptive message. \
   \
-  Do NOT modify any source code. ONLY update PRD.md, features.json, and commit."
+  Do NOT modify any source code. ONLY update PRD.md, features.json, and commit.")
+
+  log "COMMITTER done."
+  echo "$output"
 }
 
 # === MAIN LOOP ===
 for ((i=1; i<=$1; i++)); do
+  echo ""
   echo "========================================="
-  echo "ITERATION $i"
+  log "ITERATION $i"
   echo "========================================="
 
   clean_ralph
 
   # === PLANNING PHASE ===
+  log "=== PLANNING PHASE ==="
   plan_attempt=1
   while true; do
     run_planner "$plan_attempt"
 
     # Check if PRD is complete
     if grep -q "PRD_COMPLETE" .ralph/plan.md 2>/dev/null; then
-      echo "PRD complete after $i iterations."
+      log "PRD complete after $i iterations."
       exit 0
     fi
 
     # Run 3 validators in parallel
+    log "Running 3 validators in parallel..."
     run_validator "a" "COHERENCE: Is the plan coherent? Do decisions make sense given the context? Are there contradictions?" &
     pid_a=$!
     run_validator "b" "COMPLETENESS: Does the plan cover everything the task requires? Missing edge cases? Missing error handling?" &
@@ -198,15 +243,17 @@ for ((i=1; i<=$1; i++)); do
     done
 
     if [ "$approved" -eq 3 ]; then
-      echo "--- PLAN APPROVED (attempt $plan_attempt) ---"
+      log "PLAN APPROVED (attempt $plan_attempt) ✓"
       break
     else
-      echo "--- PLAN REJECTED ($approved/3 approved, attempt $plan_attempt) ---"
+      log "PLAN REJECTED ($approved/3 approved, attempt $plan_attempt) ✗"
       plan_attempt=$((plan_attempt + 1))
     fi
   done
 
   # === IMPLEMENTATION PHASE ===
+  echo ""
+  log "=== IMPLEMENTATION PHASE ==="
   impl_attempt=1
   while true; do
     run_implementer "$impl_attempt"
@@ -214,16 +261,18 @@ for ((i=1; i<=$1; i++)); do
     run_reviewer
 
     if grep -q "VERDICT: APPROVED" .ralph/review.md 2>/dev/null; then
-      echo "--- CODE APPROVED (attempt $impl_attempt) ---"
+      log "CODE APPROVED (attempt $impl_attempt) ✓"
       break
     else
-      echo "--- CODE REJECTED (attempt $impl_attempt) ---"
+      log "CODE REJECTED (attempt $impl_attempt) ✗"
       impl_attempt=$((impl_attempt + 1))
     fi
   done
 
   # === COMMIT PHASE ===
+  echo ""
+  log "=== COMMIT PHASE ==="
   run_committer
 
-  echo "Iteration $i complete."
+  log "Iteration $i complete."
 done
