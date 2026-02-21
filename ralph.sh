@@ -14,26 +14,32 @@ LOOPS=1
 TASK=""
 
 usage() {
-  echo "Usage: $0 --loop=<N> [--task=\"<description>\"]"
+  echo "Usage: $0 <task description> [--loop=N]"
   echo ""
-  echo "  --loop=N    Number of iterations to run (required)"
-  echo "  --task=STR  Specific task to implement (optional, overrides PRD picking)"
+  echo "  <task>     What to implement (optional, picks from PRD if omitted)"
+  echo "  --loop=N   Number of iterations (default: 1)"
+  echo ""
+  echo "Examples:"
+  echo "  $0 transforma o frontend em componentes --loop=3"
+  echo "  $0 --loop=2"
+  echo "  $0 adiciona dark mode"
   exit 1
 }
 
-if [ $# -eq 0 ]; then
-  usage
-fi
-
+task_words=()
 for arg in "$@"; do
   case $arg in
     --loop=*) LOOPS="${arg#*=}" ;;
-    --task=*) TASK="${arg#*=}" ;;
-    *) echo "Unknown argument: $arg"; usage ;;
+    --help|-h) usage ;;
+    *) task_words+=("$arg") ;;
   esac
 done
 
-if [ -z "$LOOPS" ] || [ "$LOOPS" -lt 1 ] 2>/dev/null; then
+if [ ${#task_words[@]} -gt 0 ]; then
+  TASK="${task_words[*]}"
+fi
+
+if ! [ "$LOOPS" -ge 1 ] 2>/dev/null; then
   echo "Error: --loop must be a positive number"
   usage
 fi
