@@ -73,7 +73,42 @@ for ((i=1; i<=$1; i++)); do
 
   clean_ralph
 
-  # PLANNING PHASE (to be added)
+  # === PLANNING PHASE ===
+  plan_attempt=1
+  while true; do
+    run_planner "$plan_attempt"
+
+    # Check if PRD is complete
+    if grep -q "PRD_COMPLETE" .ralph/plan.md 2>/dev/null; then
+      echo "PRD complete after $i iterations."
+      exit 0
+    fi
+
+    # Run 3 validators in parallel
+    run_validator "a" "COHERENCE: Is the plan coherent? Do decisions make sense given the context? Are there contradictions?" &
+    pid_a=$!
+    run_validator "b" "COMPLETENESS: Does the plan cover everything the task requires? Missing edge cases? Missing error handling?" &
+    pid_b=$!
+    run_validator "c" "SIMPLICITY: Is the plan unnecessarily complex? Over-engineered? Can it be simpler?" &
+    pid_c=$!
+    wait $pid_a $pid_b $pid_c
+
+    # Check consensus
+    approved=0
+    for v in a b c; do
+      if grep -q "VERDICT: APPROVED" ".ralph/validation-${v}.md" 2>/dev/null; then
+        approved=$((approved + 1))
+      fi
+    done
+
+    if [ "$approved" -eq 3 ]; then
+      echo "--- PLAN APPROVED (attempt $plan_attempt) ---"
+      break
+    else
+      echo "--- PLAN REJECTED ($approved/3 approved, attempt $plan_attempt) ---"
+      plan_attempt=$((plan_attempt + 1))
+    fi
+  done
 
   # IMPLEMENTATION PHASE (to be added)
 
