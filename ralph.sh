@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+cleanup() {
+  echo ""
+  log "Interrupted. Killing all child processes..."
+  kill 0 2>/dev/null
+  exit 130
+}
+trap cleanup INT TERM
+
 RALPH_DIR=".ralph"
 
 if [ -z "$1" ]; then
