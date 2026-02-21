@@ -65,6 +65,32 @@ run_validator() {
   ONLY write to .ralph/validation-${id}.md. Do NOT modify any other file."
 }
 
+run_implementer() {
+  local attempt=$1
+  echo "--- IMPLEMENTER (attempt $attempt) ---"
+
+  local review_prompt=""
+  if [ "$attempt" -gt 1 ] && [ -f ".ralph/review.md" ]; then
+    review_prompt="The reviewer REJECTED your previous implementation. \
+    Read the review at @.ralph/review.md and fix ALL issues listed. \
+    Also read @.ralph/test-report.md for test results."
+  fi
+
+  claude --permission-mode acceptEdits -p "@.ralph/plan.md \
+  You are the IMPLEMENTER. Your job: \
+  1. Read the approved plan in .ralph/plan.md. \
+  2. Implement the code changes described in the plan. \
+  3. Write a summary of what you implemented to .ralph/implementation.md with: \
+     - Files created or modified \
+     - Key decisions made during implementation \
+     - Anything that deviated from the plan and why \
+  \
+  $review_prompt \
+  \
+  Follow the plan precisely. Do NOT add features not in the plan. \
+  Do NOT run tests. Do NOT commit. Do NOT modify PRD.md or features.json."
+}
+
 # === MAIN LOOP ===
 for ((i=1; i<=$1; i++)); do
   echo "========================================="
