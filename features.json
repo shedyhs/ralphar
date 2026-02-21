@@ -1,7 +1,17 @@
 [
   {
+    "id": "P0",
+    "title": "Project setup",
+    "passes": true,
+    "completedAt": "2026-02-21",
+    "summary": "Next.js project initialized with TypeScript, ESLint, and Tailwind CSS",
+    "filesModified": [],
+    "details": ["Scaffolded with create-next-app"]
+  },
+  {
     "id": "P1",
     "title": "Add and display tasks",
+    "passes": true,
     "completedAt": "2026-02-21",
     "summary": "Users can type a task and press Enter or click Add to create it. Tasks appear in a list below the input. Empty or whitespace-only input is rejected.",
     "filesModified": ["app/page.tsx"],
@@ -15,6 +25,7 @@
   {
     "id": "P2",
     "title": "Complete and delete tasks",
+    "passes": true,
     "completedAt": "2026-02-21",
     "summary": "Users can toggle tasks as complete via checkbox (strikethrough styling) and delete tasks with a button. All changes are in the single page component.",
     "filesModified": ["app/page.tsx"],

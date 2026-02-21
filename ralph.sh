@@ -41,7 +41,7 @@ run_planner() {
   local output
   output=$(claude --permission-mode bypassPermissions -p "@PRD.md @features.json \
   You are the PLANNER. Your job: \
-  1. Read the PRD and identify the SINGLE highest-priority uncompleted task. \
+  1. Read the PRD and features.json. The SINGLE highest-priority uncompleted task is the first entry in features.json where passes is false. \
   2. Use the Task tool with subagent_type=Explore to dispatch 2-3 parallel subagents to search the codebase for relevant context (existing files, patterns, dependencies). \
   3. Write your findings to .ralph/context.md (what you found in the codebase). \
   4. Write a detailed implementation plan to .ralph/plan.md with: \
@@ -53,7 +53,7 @@ run_planner() {
   $feedback_prompt \
   \
   ONLY write to .ralph/context.md and .ralph/plan.md. Do NOT implement any code. \
-  If the PRD has no uncompleted tasks, write ONLY this to .ralph/plan.md: PRD_COMPLETE")
+  If ALL entries in features.json have passes: true, write ONLY this to .ralph/plan.md: PRD_COMPLETE")
 
   log "PLANNER done."
   echo "$output"
@@ -201,8 +201,15 @@ run_committer() {
   output=$(claude --permission-mode bypassPermissions -p "@PRD.md @features.json @.ralph/plan.md @.ralph/implementation.md \
   You are the COMMITTER. Your job: \
   1. Read the plan (.ralph/plan.md) and implementation (.ralph/implementation.md). \
-  2. Update PRD.md: mark the completed task as done. \
-  3. Update features.json: append an entry documenting what was implemented. \
+  2. Update PRD.md: mark the completed task checkboxes as [x] for what was done. \
+  3. Update features.json: find the EXISTING entry for this task and update it: \
+     - Set passes to true \
+     - Set completedAt to today's date (YYYY-MM-DD) \
+     - Set summary describing what was implemented \
+     - Set filesModified with the list of files changed \
+     - Set details with bullet points of what was done \
+     Do NOT append new entries. Do NOT remove existing entries. \
+     Every task from the PRD should already have an entry in features.json. \
   4. Stage all changed files and commit with a descriptive message. \
   \
   Do NOT modify any source code. ONLY update PRD.md, features.json, and commit.")
