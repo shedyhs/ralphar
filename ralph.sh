@@ -120,6 +120,32 @@ run_tester() {
   Just run the tests and report results."
 }
 
+run_reviewer() {
+  echo "--- REVIEWER ---"
+
+  claude --permission-mode acceptEdits -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
+  You are the REVIEWER. Your job: \
+  1. Read the approved plan (.ralph/plan.md). \
+  2. Read what was implemented (.ralph/implementation.md). \
+  3. Read the test results (.ralph/test-report.md). \
+  4. Run 'git diff' to see the actual code changes. \
+  5. Evaluate: \
+     - Does the code follow the approved plan? \
+     - Did all tests pass? \
+     - Is the code quality acceptable (readable, secure, no obvious bugs)? \
+     - Are there any issues that need fixing? \
+  6. Write your review to .ralph/review.md. \
+  \
+  Your file MUST start with exactly one of these lines: \
+  VERDICT: APPROVED \
+  or \
+  VERDICT: CHANGES_REQUESTED \
+  \
+  If CHANGES_REQUESTED, list specific issues with file paths and line numbers. \
+  If tests failed, ALWAYS request changes. \
+  Do NOT modify any code. ONLY write to .ralph/review.md."
+}
+
 # === MAIN LOOP ===
 for ((i=1; i<=$1; i++)); do
   echo "========================================="
