@@ -99,8 +99,7 @@ run_validator() {
   id_upper=$(echo "$id" | tr '[:lower:]' '[:upper:]')
   log "VALIDATOR $id_upper starting..."
 
-  local output
-  output=$(claude --permission-mode bypassPermissions -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
+  claude --permission-mode bypassPermissions -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
   You are VALIDATOR $id_upper. Your focus: $focus. \
   \
   Read the plan in .ralph/plan.md and the codebase context in .ralph/context.md. \
@@ -114,14 +113,13 @@ run_validator() {
   \
   If CHANGES_REQUESTED, list specific issues that must be fixed. \
   Be concise and actionable. Do NOT rewrite the plan yourself. \
-  ONLY write to .ralph/validation-${id}.md. Do NOT modify any other file.")
+  ONLY write to .ralph/validation-${id}.md. Do NOT modify any other file."
 
   local verdict="UNKNOWN"
   if [ -f ".ralph/validation-${id}.md" ]; then
     verdict=$(head -1 ".ralph/validation-${id}.md")
   fi
   log "VALIDATOR $id_upper done → $verdict"
-  echo "$output"
 }
 
 run_implementer() {
@@ -216,8 +214,7 @@ run_tester() {
 run_reviewer_frontend() {
   log "REVIEWER FRONTEND starting..."
 
-  local output
-  output=$(claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
+  claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
   You are the FRONTEND REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
   2. Read what was implemented (.ralph/implementation.md). \
@@ -247,21 +244,19 @@ run_reviewer_frontend() {
   \
   If CHANGES_REQUESTED, list specific issues with file paths and line numbers. \
   If tests failed, ALWAYS request changes. \
-  Do NOT modify any code. ONLY write to .ralph/review-frontend.md.")
+  Do NOT modify any code. ONLY write to .ralph/review-frontend.md."
 
   local verdict="UNKNOWN"
   if [ -f ".ralph/review-frontend.md" ]; then
     verdict=$(head -1 ".ralph/review-frontend.md")
   fi
   log "REVIEWER FRONTEND done → $verdict"
-  echo "$output"
 }
 
 run_reviewer_backend() {
   log "REVIEWER BACKEND starting..."
 
-  local output
-  output=$(claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
+  claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
   You are the BACKEND REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
   2. Read what was implemented (.ralph/implementation.md). \
@@ -291,14 +286,13 @@ run_reviewer_backend() {
   \
   If CHANGES_REQUESTED, list specific issues with file paths and line numbers. \
   If tests failed, ALWAYS request changes. \
-  Do NOT modify any code. ONLY write to .ralph/review-backend.md.")
+  Do NOT modify any code. ONLY write to .ralph/review-backend.md."
 
   local verdict="UNKNOWN"
   if [ -f ".ralph/review-backend.md" ]; then
     verdict=$(head -1 ".ralph/review-backend.md")
   fi
   log "REVIEWER BACKEND done → $verdict"
-  echo "$output"
 }
 
 run_committer() {
