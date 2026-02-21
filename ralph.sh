@@ -146,6 +146,19 @@ run_reviewer() {
   Do NOT modify any code. ONLY write to .ralph/review.md."
 }
 
+run_committer() {
+  echo "--- COMMITTER ---"
+
+  claude --permission-mode acceptEdits -p "@PRD.md @features.json @.ralph/plan.md @.ralph/implementation.md \
+  You are the COMMITTER. Your job: \
+  1. Read the plan (.ralph/plan.md) and implementation (.ralph/implementation.md). \
+  2. Update PRD.md: mark the completed task as done. \
+  3. Update features.json: append an entry documenting what was implemented. \
+  4. Stage all changed files and commit with a descriptive message. \
+  \
+  Do NOT modify any source code. ONLY update PRD.md, features.json, and commit."
+}
+
 # === MAIN LOOP ===
 for ((i=1; i<=$1; i++)); do
   echo "========================================="
@@ -207,7 +220,8 @@ for ((i=1; i<=$1; i++)); do
     fi
   done
 
-  # COMMIT PHASE (to be added)
+  # === COMMIT PHASE ===
+  run_committer
 
   echo "Iteration $i complete."
 done
