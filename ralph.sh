@@ -91,6 +91,35 @@ run_implementer() {
   Do NOT run tests. Do NOT commit. Do NOT modify PRD.md or features.json."
 }
 
+run_tester() {
+  echo "--- TESTER ---"
+
+  claude --permission-mode acceptEdits -p "@.ralph/implementation.md \
+  You are the TESTER. Your job: \
+  1. Read what was implemented in .ralph/implementation.md. \
+  2. Run ALL four feedback loops: \
+     a. npm run typecheck \
+     b. npm run build \
+     c. npm run test \
+     d. npm run lint \
+  3. Write the results to .ralph/test-report.md with this format: \
+     \
+     TYPECHECK: PASS or FAIL \
+     [output if failed] \
+     \
+     BUILD: PASS or FAIL \
+     [output if failed] \
+     \
+     TESTS: PASS or FAIL \
+     [output if failed] \
+     \
+     LINT: PASS or FAIL \
+     [output if failed] \
+  \
+  Do NOT fix any code. Do NOT modify any files except .ralph/test-report.md. \
+  Just run the tests and report results."
+}
+
 # === MAIN LOOP ===
 for ((i=1; i<=$1; i++)); do
   echo "========================================="
