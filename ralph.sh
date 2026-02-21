@@ -31,7 +31,7 @@ run_planner() {
   fi
 
   local output
-  output=$(claude --permission-mode acceptEdits -p "@PRD.md @features.json \
+  output=$(claude --permission-mode full -p "@PRD.md @features.json \
   You are the PLANNER. Your job: \
   1. Read the PRD and identify the SINGLE highest-priority uncompleted task. \
   2. Use the Task tool with subagent_type=Explore to dispatch 2-3 parallel subagents to search the codebase for relevant context (existing files, patterns, dependencies). \
@@ -59,7 +59,7 @@ run_validator() {
   log "VALIDATOR $id_upper starting..."
 
   local output
-  output=$(claude --permission-mode acceptEdits -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
+  output=$(claude --permission-mode full -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
   You are VALIDATOR $id_upper. Your focus: $focus. \
   \
   Read the plan in .ralph/plan.md and the codebase context in .ralph/context.md. \
@@ -95,7 +95,7 @@ run_implementer() {
   fi
 
   local output
-  output=$(claude --permission-mode acceptEdits -p "@.ralph/plan.md \
+  output=$(claude --permission-mode full -p "@.ralph/plan.md \
   You are the IMPLEMENTER. Your job: \
   1. Read the approved plan in .ralph/plan.md. \
   2. Implement the code changes described in the plan. \
@@ -117,7 +117,7 @@ run_tester() {
   log "TESTER starting..."
 
   local output
-  output=$(claude --permission-mode acceptEdits -p "@.ralph/implementation.md \
+  output=$(claude --permission-mode full -p "@.ralph/implementation.md \
   You are the TESTER. Your job: \
   1. Read what was implemented in .ralph/implementation.md. \
   2. Run ALL four feedback loops: \
@@ -156,7 +156,7 @@ run_reviewer() {
   log "REVIEWER starting..."
 
   local output
-  output=$(claude --permission-mode acceptEdits -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
+  output=$(claude --permission-mode full -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
   You are the REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
   2. Read what was implemented (.ralph/implementation.md). \
@@ -190,7 +190,7 @@ run_committer() {
   log "COMMITTER starting..."
 
   local output
-  output=$(claude --permission-mode acceptEdits -p "@PRD.md @features.json @.ralph/plan.md @.ralph/implementation.md \
+  output=$(claude --permission-mode full -p "@PRD.md @features.json @.ralph/plan.md @.ralph/implementation.md \
   You are the COMMITTER. Your job: \
   1. Read the plan (.ralph/plan.md) and implementation (.ralph/implementation.md). \
   2. Update PRD.md: mark the completed task as done. \
