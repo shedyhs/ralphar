@@ -43,6 +43,28 @@ run_planner() {
   If the PRD has no uncompleted tasks, write ONLY this to .ralph/plan.md: PRD_COMPLETE"
 }
 
+run_validator() {
+  local id=$1
+  local focus=$2
+  echo "--- VALIDATOR ${id^^} ($focus) ---"
+
+  claude --permission-mode acceptEdits -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
+  You are VALIDATOR ${id^^}. Your focus: $focus. \
+  \
+  Read the plan in .ralph/plan.md and the codebase context in .ralph/context.md. \
+  Evaluate the plan strictly through your lens ($focus). \
+  \
+  Write your evaluation to .ralph/validation-${id}.md. \
+  Your file MUST start with exactly one of these lines: \
+  VERDICT: APPROVED \
+  or \
+  VERDICT: CHANGES_REQUESTED \
+  \
+  If CHANGES_REQUESTED, list specific issues that must be fixed. \
+  Be concise and actionable. Do NOT rewrite the plan yourself. \
+  ONLY write to .ralph/validation-${id}.md. Do NOT modify any other file."
+}
+
 # === MAIN LOOP ===
 for ((i=1; i<=$1; i++)); do
   echo "========================================="
