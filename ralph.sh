@@ -196,12 +196,17 @@ run_reviewer() {
   2. Read what was implemented (.ralph/implementation.md). \
   3. Read the test results (.ralph/test-report.md). \
   4. Run 'git diff' to see the actual code changes. \
-  5. Evaluate: \
-     - Does the code follow the approved plan? \
-     - Did all tests pass? \
-     - Is the code quality acceptable (readable, secure, no obvious bugs)? \
-     - Are there any issues that need fixing? \
-  6. Write your review to .ralph/review.md. \
+  5. Evaluate the code against these criteria: \
+     a. PLAN ADHERENCE: Does the code implement exactly what the plan specified? \
+     b. TEST RESULTS: Did all tests (unit, e2e, typecheck, build, lint) pass? \
+     c. CODE SMELLS / DRY: Is there duplicated logic? Could shared abstractions reduce repetition? \
+     d. READABILITY: Are names clear? Is the code easy to follow? Are complex sections commented? \
+     e. SECURITY: Any XSS, injection, or other OWASP vulnerabilities? Is user input sanitized? \
+     f. PERFORMANCE: Any unnecessary re-renders, N+1 queries, expensive operations in loops, or missing memoization? \
+     g. ACCESSIBILITY (a11y): Are semantic HTML elements used? Do interactive elements have labels, roles, and keyboard support? \
+     h. TEST COVERAGE: Do the unit and e2e tests cover the main flows, edge cases, and error states? \
+     i. PROJECT CONVENTIONS: Does the code follow existing patterns, naming conventions, and file structure in the project? \
+  6. Write your review to .ralph/review.md. For each criterion, give a brief assessment. \
   \
   Your file MUST start with exactly one of these lines: \
   VERDICT: APPROVED \
