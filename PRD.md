@@ -1,54 +1,42 @@
-# Todo List App
+# My App
 
-**Author:** pri
+**Author:** your-name
 **Updated:** 2026.02.21
 
 ## The Problem
 
-Users need a simple way to track daily tasks and stay organized. Existing solutions are bloated with features, slow to load, and require accounts. Users want something lightweight that just works.
+Describe the problem you're solving and for whom. Focus on the problem, not the solution.
 
 ## Target Use Cases
 
-- As a user, I want to add a task so I can remember what I need to do.
-- As a user, I want to mark a task as done so I can track my progress.
-- As a user, I want to delete a task so I can remove items I no longer need.
-- As a user, I want to see all my tasks so I have an overview of what's pending.
+- As a user, I want to [action] so I can [benefit].
+- As a user, I want to [action] so I can [benefit].
 
 ## Proposed Solution
 
-A minimal React + TypeScript todo list app with local state. No backend, no auth — just a clean UI for managing tasks.
+One or two sentences describing the proposed solution.
 
 ## Goals
 
-- Fast and lightweight
-- Intuitive UI with zero learning curve
-- Works immediately without setup or accounts
+- Goal 1
+- Goal 2
 
 ## Out-of-Scope
 
-- Persistence (localStorage, database)
-- User authentication
-- Categories or tags
-- Due dates or reminders
+- What you're NOT building in this iteration
 
 ## Requirements
 
-### [P0] Project setup
-- [x] Initialize Next.js project with TypeScript
-- [x] Configure ESLint and basic project structure
-- [x] Add Tailwind CSS for styling
+### [P0] Initial setup
+- [ ] Set up project with chosen tech stack
+- [ ] Configure linting and formatting
+- [ ] Set up testing framework
 
-### [P1] Add and display tasks
-- [x] User can type a task and press Enter or click a button to add it
-- [x] Tasks appear in a list below the input
-- [x] Empty input should not create a task
+### [P1] Core feature
+- [ ] Describe the first user-facing feature
+- [ ] Another requirement for this feature
+- [ ] Edge case to handle
 
-### [P2] Complete and delete tasks
-- [x] User can click a checkbox to mark a task as done
-- [x] Completed tasks show with strikethrough styling
-- [x] User can click a delete button to remove a task
-
-### [P3] Dark mode
-- [x] User can toggle between light and dark mode via a button
-- [x] All UI elements update with appropriate dark color variants
-- [x] Toggle button shows accessible label and current mode indicator
+### [P2] Secondary feature
+- [ ] Describe the second feature
+- [ ] Another requirement
