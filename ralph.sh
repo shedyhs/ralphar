@@ -6,6 +6,11 @@ cleanup() {
   echo ""
   printf "  ${RED}Interrupted. Killing all child processes...${RESET}\n"
   kill 0 2>/dev/null
+  if [ -n "$FEATURE_BRANCH" ]; then
+    git merge --abort 2>/dev/null || true
+    git checkout main 2>/dev/null || true
+    printf "  ${YELLOW}Returned to main. Feature branch '%s' preserved.${RESET}\n" "$FEATURE_BRANCH"
+  fi
   exit 130
 }
 trap cleanup INT TERM
@@ -13,12 +18,15 @@ trap cleanup INT TERM
 RALPH_DIR=".ralph"
 LOOPS=100
 TASK=""
+FEATURE_BRANCH=""
+SKIP_TESTS=false
 
 usage() {
   echo "Usage: $0 <task description> [--loop=N]"
   echo ""
-  echo "  <task>     What to implement (optional, picks from PRD if omitted)"
-  echo "  --loop=N   Number of iterations (default: 1)"
+  echo "  <task>       What to implement (optional, picks from PRD if omitted)"
+  echo "  --loop=N     Number of iterations (default: 1)"
+  echo "  --no-test    Skip test writing and test running"
   echo ""
   echo "Examples:"
   echo "  $0 transforma o frontend em componentes --loop=3"
@@ -31,6 +39,7 @@ task_words=()
 for arg in "$@"; do
   case $arg in
     --loop=*) LOOPS="${arg#*=}" ;;
+    --no-test) SKIP_TESTS=true ;;
     --help|-h) usage ;;
     *) task_words+=("$arg") ;;
   esac
@@ -119,6 +128,10 @@ clean_ralph() {
   mkdir -p "$RALPH_DIR"
 }
 
+slugify() {
+  echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g;s/--*/-/g;s/^-//;s/-$//' | cut -c1-50
+}
+
 # === ROLE FUNCTIONS (output redirected to log files) ===
 
 run_planner() {
@@ -190,17 +203,28 @@ run_implementer() {
     Also read @.ralph/test-report.md for test results."
   fi
 
+  local test_instructions=""
+  if [ "$SKIP_TESTS" = false ]; then
+    test_instructions="3. Write unit tests for the code you implemented. \
+    4. Run the unit tests with 'npm run test' and fix any failures before finishing. \
+    5. Write a summary of what you implemented to .ralph/implementation.md with: \
+       - Files created or modified \
+       - Unit tests created or modified \
+       - Key decisions made during implementation \
+       - Anything that deviated from the plan and why"
+  else
+    test_instructions="3. Do NOT write any tests. \
+    4. Write a summary of what you implemented to .ralph/implementation.md with: \
+       - Files created or modified \
+       - Key decisions made during implementation \
+       - Anything that deviated from the plan and why"
+  fi
+
   claude --permission-mode bypassPermissions --model sonnet -p "@.ralph/plan.md \
   You are the IMPLEMENTER. Your job: \
   1. Read the approved plan in .ralph/plan.md. \
   2. Implement the code changes described in the plan. \
-  3. Write unit tests for the code you implemented. \
-  4. Run the unit tests with 'npm run test' and fix any failures before finishing. \
-  5. Write a summary of what you implemented to .ralph/implementation.md with: \
-     - Files created or modified \
-     - Unit tests created or modified \
-     - Key decisions made during implementation \
-     - Anything that deviated from the plan and why \
+  $test_instructions \
   \
   $review_prompt \
   \
@@ -259,12 +283,19 @@ run_tester() {
 }
 
 run_reviewer_frontend() {
-  claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
+  local test_ref=""
+  local test_step=""
+  if [ "$SKIP_TESTS" = false ]; then
+    test_ref="@.ralph/test-report.md"
+    test_step="3. Read the test results (.ralph/test-report.md). \\"
+  fi
+
+  claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md $test_ref \
   @.claude/skills/frontend-reviewer/SKILL.md \
   You are the FRONTEND REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
   2. Read what was implemented (.ralph/implementation.md). \
-  3. Read the test results (.ralph/test-report.md). \
+  $test_step
   4. Run 'git diff' to see the actual code changes. \
   5. First, determine if there is ANY frontend code in this change (components, pages, styles, hooks, client-side logic, JSX/TSX files). \
      If there is NO frontend code, write to .ralph/review-frontend.md: \
@@ -288,12 +319,19 @@ run_reviewer_frontend() {
 }
 
 run_reviewer_backend() {
-  claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
+  local test_ref=""
+  local test_step=""
+  if [ "$SKIP_TESTS" = false ]; then
+    test_ref="@.ralph/test-report.md"
+    test_step="3. Read the test results (.ralph/test-report.md). \\"
+  fi
+
+  claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md $test_ref \
   @.claude/skills/backend-reviewer/SKILL.md \
   You are the BACKEND REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
   2. Read what was implemented (.ralph/implementation.md). \
-  3. Read the test results (.ralph/test-report.md). \
+  $test_step
   4. Run 'git diff' to see the actual code changes. \
   5. First, determine if there is ANY backend code in this change (API routes, server actions, database, middleware, server-side logic). \
      If there is NO backend code, write to .ralph/review-backend.md: \
@@ -428,8 +466,25 @@ for ((i=1; i<=LOOPS; i++)); do
   run_register_task
   step_done
 
-  # === IMPLEMENTATION PHASE ===
+  # === CREATE FEATURE BRANCH ===
   task_name=$(grep -m1 "^#" .ralph/plan.md 2>/dev/null | sed 's/^#* *//' || echo "")
+  branch_slug=$(slugify "$task_name")
+  if [ -z "$branch_slug" ]; then
+    branch_slug="task-$(date +%s)"
+  fi
+  FEATURE_BRANCH="feature/${branch_slug}"
+
+  # Clean up stale branch from previous failed run
+  git checkout main 2>/dev/null || true
+  if git rev-parse --verify "$FEATURE_BRANCH" >/dev/null 2>&1; then
+    git branch -D "$FEATURE_BRANCH" 2>/dev/null || true
+  fi
+
+  step "Creating branch..."
+  git checkout -b "$FEATURE_BRANCH"
+  step_done "$FEATURE_BRANCH"
+
+  # === IMPLEMENTATION PHASE ===
   impl_attempt=1
   while true; do
     echo ""
@@ -443,17 +498,19 @@ for ((i=1; i<=LOOPS; i++)); do
     run_implementer "$impl_attempt"
     step_done
 
-    step "Writing e2e tests..."
-    run_e2e_writer
-    step_done
+    if [ "$SKIP_TESTS" = false ]; then
+      step "Writing e2e tests..."
+      run_e2e_writer
+      step_done
 
-    step "Testing..."
-    run_tester
-    tc=$(test_status "TYPECHECK")
-    bd=$(test_status "BUILD")
-    ts=$(test_status "TESTS")
-    lt=$(test_status "LINT")
-    step_done "typecheck:$tc  build:$bd  test:$ts  lint:$lt"
+      step "Testing..."
+      run_tester
+      tc=$(test_status "TYPECHECK")
+      bd=$(test_status "BUILD")
+      ts=$(test_status "TESTS")
+      lt=$(test_status "LINT")
+      step_done "typecheck:$tc  build:$bd  test:$ts  lint:$lt"
+    fi
 
     step "Reviewing..."
     run_reviewer_frontend &
@@ -495,6 +552,18 @@ for ((i=1; i<=LOOPS; i++)); do
   printf "${CYAN}▸ COMMIT${RESET}\n"
   step "Committing..."
   run_committer
+  step_done
+
+  # === MERGE TO MAIN ===
+  step "Merging to main..."
+  git checkout main
+  if ! git merge --ff-only "$FEATURE_BRANCH"; then
+    git merge --abort 2>/dev/null || true
+    printf "\n  ${RED}Merge failed. Feature branch '%s' preserved.${RESET}\n" "$FEATURE_BRANCH"
+    exit 1
+  fi
+  git branch -d "$FEATURE_BRANCH"
+  FEATURE_BRANCH=""
   step_done
 
   iter_elapsed=$(( $(date +%s) - iter_start ))
