@@ -133,7 +133,7 @@ run_implementer() {
     Also read @.ralph/test-report.md for test results."
   fi
 
-  claude --permission-mode bypassPermissions -p "@.ralph/plan.md \
+  claude --permission-mode bypassPermissions --model sonnet -p "@.ralph/plan.md \
   You are the IMPLEMENTER. Your job: \
   1. Read the approved plan in .ralph/plan.md. \
   2. Implement the code changes described in the plan. \
@@ -156,7 +156,7 @@ run_implementer() {
 run_e2e_writer() {
   log "E2E WRITER starting..."
 
-  claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md \
+  claude --permission-mode bypassPermissions --model sonnet -p "@.ralph/plan.md @.ralph/implementation.md \
   You are the E2E TEST WRITER. Your job: \
   1. Read the plan (.ralph/plan.md) and what was implemented (.ralph/implementation.md). \
   2. Write end-to-end tests that verify the feature works from a user perspective. \
