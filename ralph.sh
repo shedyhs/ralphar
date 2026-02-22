@@ -257,6 +257,7 @@ run_reviewer_backend() {
   log "REVIEWER BACKEND starting..."
 
   claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
+  @~/.claude/skills/backend-reviewer/SKILL.md \
   You are the BACKEND REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
   2. Read what was implemented (.ralph/implementation.md). \
@@ -267,17 +268,9 @@ run_reviewer_backend() {
      VERDICT: APPROVED \
      No backend changes in this iteration. \
      Then stop. \
-  6. If there IS backend code, evaluate against these criteria: \
-     a. PLAN ADHERENCE: Does the backend code implement exactly what the plan specified? \
-     b. SECURITY: SQL injection, auth bypass, CSRF, improper input validation, secrets exposure, OWASP top 10? \
-     c. PERFORMANCE: N+1 queries, missing indexes, expensive operations in loops, missing caching, unoptimized DB calls? \
-     d. ERROR HANDLING: Are errors caught and handled gracefully? Are appropriate HTTP status codes returned? Are errors logged? \
-     e. DATA VALIDATION: Is input validated and sanitized at API boundaries? Are types enforced? \
-     f. CODE SMELLS / DRY: Is there duplicated logic? Should shared utilities or middleware be extracted? \
-     g. READABILITY: Are function and variable names clear? Is complex logic commented? \
-     h. TEST COVERAGE: Do unit tests cover API logic, edge cases, error paths, and validation? \
-     i. PROJECT CONVENTIONS: Does the code follow existing API patterns, naming, and file structure? \
-  7. Write your review to .ralph/review-backend.md. For each criterion, give a brief assessment. \
+  6. If there IS backend code, follow the review process in the backend-reviewer skill. \
+     Use the skill's references (code-smells, refactoring, design-patterns) to inform your review. \
+  7. Write your review to .ralph/review-backend.md following the skill's output format. \
   \
   Your file MUST start with exactly one of these lines: \
   VERDICT: APPROVED \
