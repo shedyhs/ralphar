@@ -8,7 +8,7 @@ An autonomous coding pipeline powered by [Claude Code](https://docs.anthropic.co
 ./ralph.sh add user authentication --loop=3
 ```
 
-Ralph reads your `PRD.md` and `features.json`, then runs an iterative pipeline:
+Ralph reads your `PRD.md` and `.claude/features.json`, then runs an iterative pipeline:
 
 ```
                     PLANNING PHASE
@@ -77,8 +77,8 @@ Ralph reads your `PRD.md` and `features.json`, then runs an iterative pipeline:
 | 5 | **Implementer** | Writes code + unit tests following the approved plan, runs tests until green | Sequential |
 | 6 | **E2E Writer** | Writes end-to-end tests covering user journeys from the plan | Sequential |
 | 7 | **Tester** | Runs typecheck, build, tests, and lint — reports PASS/FAIL for each | Sequential |
-| 8 | **Frontend Reviewer** | Reviews frontend code for a11y, performance, UX, security, DRY, test coverage | Parallel |
-| 9 | **Backend Reviewer** | Reviews backend code for security, performance, error handling, validation, DRY | Parallel |
+| 8 | **Frontend Reviewer** | Reviews frontend code using the frontend-reviewer skill | Parallel |
+| 9 | **Backend Reviewer** | Reviews backend code using the backend-reviewer skill | Parallel |
 | 10 | **Committer** | Updates PRD.md + features.json, creates git commit | Sequential |
 
 Reviewers auto-approve if the change doesn't include code in their domain.
@@ -89,16 +89,48 @@ Reviewers auto-approve if the change doesn't include code in their domain.
 
 **Implementation loop:** The implementer fixes code until both reviewers approve. Review feedback + test results are passed back on each retry.
 
+## Log Output
+
+All agent stdout is redirected to `.ralph/*.log` files. The pipeline prints a compact summary:
+
+```
+───── ITERATION 1: add dark mode ─────
+
+▸ PLANNING (attempt 1)
+  Planning...           done (2m13s)
+  Task: P0 Initial Setup
+  Validating...         A:✓  B:✗  C:✓ — REJECTED (1m23s)
+    B: Missing Playwright browser install; test:e2e not in verification
+
+▸ PLANNING (attempt 2)
+  Planning...           done (3m03s)
+  Task: P0 Initial Setup
+  Validating...         A:✓  B:✓  C:✓ — APPROVED (0m58s)
+
+▸ IMPLEMENTATION (attempt 1) — P0 Initial Setup
+  Implementing...       done (4m22s)
+  Writing e2e tests...  done (1m15s)
+  Testing...            typecheck:✓  build:✓  test:✓  lint:✓ (2m01s)
+  Reviewing...          FE:✓  BE:✓ — APPROVED (1m30s)
+
+▸ COMMIT
+  Committing...         done (0m45s)
+
+✓ Iteration 1 complete (14m32s)
+```
+
+Full agent output is always available at `.ralph/planner.log`, `.ralph/implementer.log`, etc.
+
 ## Prerequisites
 
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
-- A git repository with `PRD.md` and `features.json`
+- A git repository with `PRD.md` and `.claude/features.json`
 
 ## Setup
 
 1. Clone this repo (or copy `ralph.sh` into your project)
 2. Edit `PRD.md` with your product requirements
-3. Edit `features.json` with matching entries (one per PRD section, all with `"passes": false`)
+3. Edit `.claude/features.json` with matching entries (one per PRD section, all with `"passes": false`)
 4. Run ralph
 
 ## Usage
@@ -124,26 +156,24 @@ Reviewers auto-approve if the change doesn't include code in their domain.
 
 ```
 your-project/
-├── ralph.sh          # The pipeline script
-├── PRD.md            # Your product requirements
-├── features.json     # Task tracking (passes: true/false)
-├── .ralph/           # Working directory (gitignored, cleaned each iteration)
-│   ├── context.md
-│   ├── plan.md
-│   ├── validation-a.md
-│   ├── validation-b.md
-│   ├── validation-c.md
-│   ├── implementation.md
-│   ├── test-report.md
-│   ├── review-frontend.md
-│   ├── review-backend.md
-│   └── review.md
+├── ralph.sh              # The pipeline script
+├── PRD.md                # Your product requirements
+├── .claude/
+│   └── features.json     # Task tracking (passes: true/false)
+├── .ralph/               # Working directory (gitignored, cleaned each iteration)
+│   ├── context.md        # Codebase context found by planner
+│   ├── plan.md           # Implementation plan
+│   ├── validation-*.md   # Validator verdicts
+│   ├── implementation.md # What was implemented
+│   ├── test-report.md    # Test results
+│   ├── review-*.md       # Reviewer verdicts
+│   └── *.log             # Full agent output
 └── ...your code
 ```
 
 ## features.json Format
 
-Each entry in `features.json` maps to a section in your PRD:
+Each entry in `.claude/features.json` maps to a section in your PRD:
 
 ```json
 [
@@ -166,10 +196,10 @@ After ralph completes a task, the committer updates the entry:
   "id": "P0",
   "title": "Initial setup",
   "passes": true,
-  "completedAt": "2026-02-21",
-  "summary": "Scaffolded Next.js with TypeScript, ESLint, and Tailwind",
-  "filesModified": ["package.json", "tsconfig.json"],
-  "details": ["Used create-next-app with --typescript flag"]
+  "completedAt": "2026-02-22",
+  "summary": "Scaffolded Next.js with TypeScript, Biome, Vitest, and Playwright",
+  "filesModified": ["package.json", "tsconfig.json", "biome.json"],
+  "details": ["Created Next.js 15 App Router project with React 19 and TypeScript"]
 }
 ```
 

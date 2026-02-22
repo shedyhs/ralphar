@@ -2,8 +2,9 @@
 set -e
 
 cleanup() {
+  trap - INT TERM
   echo ""
-  log "Interrupted. Killing all child processes..."
+  echo "  Interrupted. Killing all child processes..."
   kill 0 2>/dev/null
   exit 130
 }
@@ -44,8 +45,63 @@ if ! [ "$LOOPS" -ge 1 ] 2>/dev/null; then
   usage
 fi
 
-log() {
-  echo "[$(date '+%H:%M:%S')] $*"
+# === LOGGING HELPERS ===
+
+_step_start=0
+
+step() {
+  _step_start=$(date +%s)
+  printf "  %-24s" "$1"
+}
+
+step_done() {
+  local msg="${1:-done}"
+  local elapsed=$(( $(date +%s) - _step_start ))
+  local min=$((elapsed / 60))
+  local sec=$((elapsed % 60))
+  printf "%s (%dm%02ds)\n" "$msg" "$min" "$sec"
+}
+
+verdict() {
+  local file=$1
+  if [ -f "$file" ] && grep -q "VERDICT: APPROVED" "$file" 2>/dev/null; then
+    echo "✓"
+  else
+    echo "✗"
+  fi
+}
+
+test_status() {
+  local key=$1
+  if grep -q "^${key}: PASS" .ralph/test-report.md 2>/dev/null; then
+    echo "✓"
+  else
+    echo "✗"
+  fi
+}
+
+print_rejection() {
+  local label=$1
+  local file=$2
+  if ! [ -f "$file" ] || ! grep -q "CHANGES_REQUESTED" "$file" 2>/dev/null; then
+    return
+  fi
+  # Extract numbered/bulleted items, clean and join as brief summary
+  local issues
+  issues=$(grep -E "^[[:space:]]*([-*]|[0-9]+[.\)])[[:space:]]" "$file" | \
+    sed 's/^[[:space:]]*[-*][[:space:]]*//' | \
+    sed 's/^[[:space:]]*[0-9]*[.)][[:space:]]*//' | \
+    sed 's/[`*]//g' | \
+    head -3 | \
+    tr '\n' ';' | \
+    sed 's/;$//' | \
+    sed 's/;/; /g')
+  if [ -z "$issues" ]; then
+    issues=$(tail -n +2 "$file" | grep -v "^$" | grep -vi "^verdict" | sed 's/[`*]//g' | head -1)
+  fi
+  if [ -n "$issues" ]; then
+    printf "    %s: %.120s\n" "$label" "$issues"
+  fi
 }
 
 clean_ralph() {
@@ -53,11 +109,10 @@ clean_ralph() {
   mkdir -p "$RALPH_DIR"
 }
 
-# === ROLE FUNCTIONS ===
+# === ROLE FUNCTIONS (output redirected to log files) ===
 
 run_planner() {
   local attempt=$1
-  log "PLANNER starting (attempt $attempt)..."
 
   local feedback_prompt=""
   if [ "$attempt" -gt 1 ]; then
@@ -72,7 +127,7 @@ run_planner() {
     You MUST plan this specific task instead of picking from features.json."
   fi
 
-  claude --permission-mode bypassPermissions -p "@PRD.md @features.json \
+  claude --permission-mode bypassPermissions -p "@PRD.md @.claude/features.json \
   You are the PLANNER. Your job: \
   1. Read the PRD and features.json. The SINGLE highest-priority uncompleted task is the first entry in features.json where passes is false. \
   $task_prompt \
@@ -87,20 +142,17 @@ run_planner() {
   $feedback_prompt \
   \
   ONLY write to .ralph/context.md and .ralph/plan.md. Do NOT implement any code. \
-  If ALL entries in features.json have passes: true, write ONLY this to .ralph/plan.md: PRD_COMPLETE"
-
-  log "PLANNER done."
+  If ALL entries in features.json have passes: true, write ONLY this to .ralph/plan.md: PRD_COMPLETE" \
+  > "$RALPH_DIR/planner.log" 2>&1 &
+  wait $!
 }
 
 run_validator() {
   local id=$1
   local focus=$2
-  local id_upper
-  id_upper=$(echo "$id" | tr '[:lower:]' '[:upper:]')
-  log "VALIDATOR $id_upper starting..."
 
   claude --permission-mode bypassPermissions -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
-  You are VALIDATOR $id_upper. Your focus: $focus. \
+  You are VALIDATOR $(echo "$id" | tr '[:lower:]' '[:upper:]'). Your focus: $focus. \
   \
   Read the plan in .ralph/plan.md and the codebase context in .ralph/context.md. \
   Evaluate the plan strictly through your lens ($focus). \
@@ -113,18 +165,13 @@ run_validator() {
   \
   If CHANGES_REQUESTED, list specific issues that must be fixed. \
   Be concise and actionable. Do NOT rewrite the plan yourself. \
-  ONLY write to .ralph/validation-${id}.md. Do NOT modify any other file."
-
-  local verdict="UNKNOWN"
-  if [ -f ".ralph/validation-${id}.md" ]; then
-    verdict=$(head -1 ".ralph/validation-${id}.md")
-  fi
-  log "VALIDATOR $id_upper done → $verdict"
+  ONLY write to .ralph/validation-${id}.md. Do NOT modify any other file." \
+  > "$RALPH_DIR/validator-${id}.log" 2>&1 &
+  wait $!
 }
 
 run_implementer() {
   local attempt=$1
-  log "IMPLEMENTER starting (attempt $attempt)..."
 
   local review_prompt=""
   if [ "$attempt" -gt 1 ] && [ -f ".ralph/review.md" ]; then
@@ -148,14 +195,12 @@ run_implementer() {
   $review_prompt \
   \
   Follow the plan precisely. Do NOT add features not in the plan. \
-  Do NOT commit. Do NOT modify PRD.md or features.json."
-
-  log "IMPLEMENTER done."
+  Do NOT commit. Do NOT modify PRD.md or features.json." \
+  > "$RALPH_DIR/implementer.log" 2>&1 &
+  wait $!
 }
 
 run_e2e_writer() {
-  log "E2E WRITER starting..."
-
   claude --permission-mode bypassPermissions --model sonnet -p "@.ralph/plan.md @.ralph/implementation.md \
   You are the E2E TEST WRITER. Your job: \
   1. Read the plan (.ralph/plan.md) and what was implemented (.ralph/implementation.md). \
@@ -169,14 +214,12 @@ run_e2e_writer() {
      - What user flows are covered \
   \
   Do NOT modify any source code. ONLY write e2e tests. \
-  Do NOT commit. Do NOT modify PRD.md or features.json."
-
-  log "E2E WRITER done."
+  Do NOT commit. Do NOT modify PRD.md or features.json." \
+  > "$RALPH_DIR/e2e-writer.log" 2>&1 &
+  wait $!
 }
 
 run_tester() {
-  log "TESTER starting..."
-
   claude --permission-mode bypassPermissions --model sonnet -p "@.ralph/implementation.md \
   You are the TESTER. Your job: \
   1. Read what was implemented in .ralph/implementation.md. \
@@ -200,20 +243,12 @@ run_tester() {
      [output if failed] \
   \
   Do NOT fix any code. Do NOT modify any files except .ralph/test-report.md. \
-  Just run the tests and report results."
-
-  log "TESTER done."
-  if [ -f ".ralph/test-report.md" ]; then
-    log "Test results:"
-    grep -E "^(TYPECHECK|BUILD|TESTS|LINT):" .ralph/test-report.md | while read -r line; do
-      log "  $line"
-    done
-  fi
+  Just run the tests and report results." \
+  > "$RALPH_DIR/tester.log" 2>&1 &
+  wait $!
 }
 
 run_reviewer_frontend() {
-  log "REVIEWER FRONTEND starting..."
-
   claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
   @.claude/skills/frontend-reviewer/SKILL.md \
   You are the FRONTEND REVIEWER. Your job: \
@@ -237,18 +272,12 @@ run_reviewer_frontend() {
   \
   If CHANGES_REQUESTED, list specific issues with file paths and line numbers. \
   If tests failed, ALWAYS request changes. \
-  Do NOT modify any code. ONLY write to .ralph/review-frontend.md."
-
-  local verdict="UNKNOWN"
-  if [ -f ".ralph/review-frontend.md" ]; then
-    verdict=$(head -1 ".ralph/review-frontend.md")
-  fi
-  log "REVIEWER FRONTEND done → $verdict"
+  Do NOT modify any code. ONLY write to .ralph/review-frontend.md." \
+  > "$RALPH_DIR/reviewer-frontend.log" 2>&1 &
+  wait $!
 }
 
 run_reviewer_backend() {
-  log "REVIEWER BACKEND starting..."
-
   claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
   @.claude/skills/backend-reviewer/SKILL.md \
   You are the BACKEND REVIEWER. Your job: \
@@ -272,19 +301,13 @@ run_reviewer_backend() {
   \
   If CHANGES_REQUESTED, list specific issues with file paths and line numbers. \
   If tests failed, ALWAYS request changes. \
-  Do NOT modify any code. ONLY write to .ralph/review-backend.md."
-
-  local verdict="UNKNOWN"
-  if [ -f ".ralph/review-backend.md" ]; then
-    verdict=$(head -1 ".ralph/review-backend.md")
-  fi
-  log "REVIEWER BACKEND done → $verdict"
+  Do NOT modify any code. ONLY write to .ralph/review-backend.md." \
+  > "$RALPH_DIR/reviewer-backend.log" 2>&1 &
+  wait $!
 }
 
 run_committer() {
-  log "COMMITTER starting..."
-
-  claude --permission-mode bypassPermissions --model sonnet -p "@PRD.md @features.json @.ralph/plan.md @.ralph/implementation.md \
+  claude --permission-mode bypassPermissions --model sonnet -p "@PRD.md @.claude/features.json @.ralph/plan.md @.ralph/implementation.md \
   You are the COMMITTER. Your job: \
   1. Read the plan (.ralph/plan.md) and implementation (.ralph/implementation.md). \
   2. Update PRD.md: mark the completed task checkboxes as [x] for what was done. \
@@ -298,43 +321,58 @@ run_committer() {
      Every task from the PRD should already have an entry in features.json. \
   4. Stage all changed files and commit with a descriptive message. \
   \
-  Do NOT modify any source code. ONLY update PRD.md, features.json, and commit."
-
-  log "COMMITTER done."
+  Do NOT modify any source code. ONLY update PRD.md, features.json, and commit." \
+  > "$RALPH_DIR/committer.log" 2>&1 &
+  wait $!
 }
 
 # === MAIN LOOP ===
 for ((i=1; i<=LOOPS; i++)); do
+  iter_start=$(date +%s)
   echo ""
-  echo "========================================="
-  log "ITERATION $i"
-  echo "========================================="
+  if [ -n "$TASK" ]; then
+    echo "───── ITERATION $i: $TASK ─────"
+  else
+    echo "───── ITERATION $i ─────"
+  fi
 
   clean_ralph
 
   # === PLANNING PHASE ===
-  log "=== PLANNING PHASE ==="
   plan_attempt=1
   while true; do
+    echo ""
+    echo "▸ PLANNING (attempt $plan_attempt)"
+
+    step "Planning..."
     run_planner "$plan_attempt"
+    step_done
 
     # Check if PRD is complete
     if grep -q "PRD_COMPLETE" .ralph/plan.md 2>/dev/null; then
-      log "PRD complete after $i iterations."
+      echo "  PRD complete. All tasks done."
       exit 0
     fi
 
-    # Run 3 validators in parallel
-    log "Running 3 validators in parallel..."
+    # Extract task info from plan.md (first heading)
+    task_name=$(grep -m1 "^#" .ralph/plan.md 2>/dev/null | sed 's/^#* *//' || echo "")
+    if [ -n "$task_name" ]; then
+      printf "  Task: %s\n" "$task_name"
+    fi
+
+    step "Validating..."
     run_validator "a" "COHERENCE: Is the plan coherent? Do decisions make sense given the context? Are there contradictions?" &
     pid_a=$!
     run_validator "b" "COMPLETENESS: Does the plan cover everything the task requires? Missing edge cases? Missing error handling?" &
     pid_b=$!
     run_validator "c" "SIMPLICITY: Is the plan unnecessarily complex? Over-engineered? Can it be simpler?" &
     pid_c=$!
-    wait $pid_a $pid_b $pid_c
+    wait $pid_a $pid_b $pid_c || true
 
-    # Check consensus
+    va=$(verdict ".ralph/validation-a.md")
+    vb=$(verdict ".ralph/validation-b.md")
+    vc=$(verdict ".ralph/validation-c.md")
+
     approved=0
     for v in a b c; do
       if grep -q "VERDICT: APPROVED" ".ralph/validation-${v}.md" 2>/dev/null; then
@@ -343,32 +381,54 @@ for ((i=1; i<=LOOPS; i++)); do
     done
 
     if [ "$approved" -eq 3 ]; then
-      log "PLAN APPROVED (attempt $plan_attempt) ✓"
+      step_done "A:$va  B:$vb  C:$vc — APPROVED"
       break
     else
-      log "PLAN REJECTED ($approved/3 approved, attempt $plan_attempt) ✗"
+      step_done "A:$va  B:$vb  C:$vc — REJECTED"
+      print_rejection "A" ".ralph/validation-a.md"
+      print_rejection "B" ".ralph/validation-b.md"
+      print_rejection "C" ".ralph/validation-c.md"
       plan_attempt=$((plan_attempt + 1))
     fi
   done
 
   # === IMPLEMENTATION PHASE ===
-  echo ""
-  log "=== IMPLEMENTATION PHASE ==="
+  task_name=$(grep -m1 "^#" .ralph/plan.md 2>/dev/null | sed 's/^#* *//' || echo "")
   impl_attempt=1
   while true; do
-    run_implementer "$impl_attempt"
-    run_e2e_writer
-    run_tester
+    echo ""
+    if [ -n "$task_name" ]; then
+      echo "▸ IMPLEMENTATION (attempt $impl_attempt) — $task_name"
+    else
+      echo "▸ IMPLEMENTATION (attempt $impl_attempt)"
+    fi
 
-    # Run both reviewers in parallel
-    log "Running frontend and backend reviewers in parallel..."
+    step "Implementing..."
+    run_implementer "$impl_attempt"
+    step_done
+
+    step "Writing e2e tests..."
+    run_e2e_writer
+    step_done
+
+    step "Testing..."
+    run_tester
+    tc=$(test_status "TYPECHECK")
+    bd=$(test_status "BUILD")
+    ts=$(test_status "TESTS")
+    lt=$(test_status "LINT")
+    step_done "typecheck:$tc  build:$bd  test:$ts  lint:$lt"
+
+    step "Reviewing..."
     run_reviewer_frontend &
     pid_fe=$!
     run_reviewer_backend &
     pid_be=$!
-    wait $pid_fe $pid_be
+    wait $pid_fe $pid_be || true
 
-    # Both must approve
+    fe=$(verdict ".ralph/review-frontend.md")
+    be=$(verdict ".ralph/review-backend.md")
+
     fe_approved=false
     be_approved=false
     if grep -q "VERDICT: APPROVED" .ralph/review-frontend.md 2>/dev/null; then
@@ -379,11 +439,12 @@ for ((i=1; i<=LOOPS; i++)); do
     fi
 
     if [ "$fe_approved" = true ] && [ "$be_approved" = true ]; then
-      log "CODE APPROVED by both reviewers (attempt $impl_attempt) ✓"
+      step_done "FE:$fe  BE:$be — APPROVED"
       break
     else
-      log "CODE REJECTED (FE=$fe_approved BE=$be_approved, attempt $impl_attempt) ✗"
-      # Merge both reviews into review.md so implementer can read them
+      step_done "FE:$fe  BE:$be — REJECTED"
+      print_rejection "FE" ".ralph/review-frontend.md"
+      print_rejection "BE" ".ralph/review-backend.md"
       cat .ralph/review-frontend.md > .ralph/review.md 2>/dev/null || true
       echo "" >> .ralph/review.md
       echo "---" >> .ralph/review.md
@@ -395,8 +456,14 @@ for ((i=1; i<=LOOPS; i++)); do
 
   # === COMMIT PHASE ===
   echo ""
-  log "=== COMMIT PHASE ==="
+  echo "▸ COMMIT"
+  step "Committing..."
   run_committer
+  step_done
 
-  log "Iteration $i complete."
+  iter_elapsed=$(( $(date +%s) - iter_start ))
+  iter_min=$((iter_elapsed / 60))
+  iter_sec=$((iter_elapsed % 60))
+  echo ""
+  printf "✓ Iteration %d complete (%dm%02ds)\n" "$i" "$iter_min" "$iter_sec"
 done
