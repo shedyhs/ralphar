@@ -4,7 +4,7 @@ set -e
 cleanup() {
   trap - INT TERM
   echo ""
-  echo "  Interrupted. Killing all child processes..."
+  printf "  ${RED}Interrupted. Killing all child processes...${RESET}\n"
   kill 0 2>/dev/null
   exit 130
 }
@@ -45,6 +45,16 @@ if ! [ "$LOOPS" -ge 1 ] 2>/dev/null; then
   usage
 fi
 
+# === COLORS ===
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+RESET='\033[0m'
+
 # === LOGGING HELPERS ===
 
 _step_start=0
@@ -59,24 +69,24 @@ step_done() {
   local elapsed=$(( $(date +%s) - _step_start ))
   local min=$((elapsed / 60))
   local sec=$((elapsed % 60))
-  printf "%s (%dm%02ds)\n" "$msg" "$min" "$sec"
+  printf "%s ${DIM}(%dm%02ds)${RESET}\n" "$msg" "$min" "$sec"
 }
 
 verdict() {
   local file=$1
   if [ -f "$file" ] && grep -q "VERDICT: APPROVED" "$file" 2>/dev/null; then
-    echo "✓"
+    printf "${GREEN}✓${RESET}"
   else
-    echo "✗"
+    printf "${RED}✗${RESET}"
   fi
 }
 
 test_status() {
   local key=$1
   if grep -q "^${key}: PASS" .ralph/test-report.md 2>/dev/null; then
-    echo "✓"
+    printf "${GREEN}✓${RESET}"
   else
-    echo "✗"
+    printf "${RED}✗${RESET}"
   fi
 }
 
@@ -100,7 +110,7 @@ print_rejection() {
     issues=$(tail -n +2 "$file" | grep -v "^$" | grep -vi "^verdict" | sed 's/[`*]//g' | head -1)
   fi
   if [ -n "$issues" ]; then
-    printf "    %s: %.120s\n" "$label" "$issues"
+    printf "    ${RED}%s: %.120s${RESET}\n" "$label" "$issues"
   fi
 }
 
@@ -331,9 +341,9 @@ for ((i=1; i<=LOOPS; i++)); do
   iter_start=$(date +%s)
   echo ""
   if [ -n "$TASK" ]; then
-    echo "───── ITERATION $i: $TASK ─────"
+    printf "${BOLD}───── ITERATION $i: $TASK ─────${RESET}\n"
   else
-    echo "───── ITERATION $i ─────"
+    printf "${BOLD}───── ITERATION $i ─────${RESET}\n"
   fi
 
   clean_ralph
@@ -342,7 +352,7 @@ for ((i=1; i<=LOOPS; i++)); do
   plan_attempt=1
   while true; do
     echo ""
-    echo "▸ PLANNING (attempt $plan_attempt)"
+    printf "${CYAN}▸ PLANNING${RESET} ${DIM}(attempt $plan_attempt)${RESET}\n"
 
     step "Planning..."
     run_planner "$plan_attempt"
@@ -350,14 +360,14 @@ for ((i=1; i<=LOOPS; i++)); do
 
     # Check if PRD is complete
     if grep -q "PRD_COMPLETE" .ralph/plan.md 2>/dev/null; then
-      echo "  PRD complete. All tasks done."
+      printf "  ${GREEN}PRD complete. All tasks done.${RESET}\n"
       exit 0
     fi
 
     # Extract task info from plan.md (first heading)
     task_name=$(grep -m1 "^#" .ralph/plan.md 2>/dev/null | sed 's/^#* *//' || echo "")
     if [ -n "$task_name" ]; then
-      printf "  Task: %s\n" "$task_name"
+      printf "  ${YELLOW}Task: %s${RESET}\n" "$task_name"
     fi
 
     step "Validating..."
@@ -381,10 +391,10 @@ for ((i=1; i<=LOOPS; i++)); do
     done
 
     if [ "$approved" -eq 3 ]; then
-      step_done "A:$va  B:$vb  C:$vc — APPROVED"
+      step_done "A:$va  B:$vb  C:$vc — ${GREEN}APPROVED${RESET}"
       break
     else
-      step_done "A:$va  B:$vb  C:$vc — REJECTED"
+      step_done "A:$va  B:$vb  C:$vc — ${RED}REJECTED${RESET}"
       print_rejection "A" ".ralph/validation-a.md"
       print_rejection "B" ".ralph/validation-b.md"
       print_rejection "C" ".ralph/validation-c.md"
@@ -398,9 +408,9 @@ for ((i=1; i<=LOOPS; i++)); do
   while true; do
     echo ""
     if [ -n "$task_name" ]; then
-      echo "▸ IMPLEMENTATION (attempt $impl_attempt) — $task_name"
+      printf "${CYAN}▸ IMPLEMENTATION${RESET} ${DIM}(attempt $impl_attempt)${RESET} — ${YELLOW}$task_name${RESET}\n"
     else
-      echo "▸ IMPLEMENTATION (attempt $impl_attempt)"
+      printf "${CYAN}▸ IMPLEMENTATION${RESET} ${DIM}(attempt $impl_attempt)${RESET}\n"
     fi
 
     step "Implementing..."
@@ -439,10 +449,10 @@ for ((i=1; i<=LOOPS; i++)); do
     fi
 
     if [ "$fe_approved" = true ] && [ "$be_approved" = true ]; then
-      step_done "FE:$fe  BE:$be — APPROVED"
+      step_done "FE:$fe  BE:$be — ${GREEN}APPROVED${RESET}"
       break
     else
-      step_done "FE:$fe  BE:$be — REJECTED"
+      step_done "FE:$fe  BE:$be — ${RED}REJECTED${RESET}"
       print_rejection "FE" ".ralph/review-frontend.md"
       print_rejection "BE" ".ralph/review-backend.md"
       cat .ralph/review-frontend.md > .ralph/review.md 2>/dev/null || true
@@ -456,7 +466,7 @@ for ((i=1; i<=LOOPS; i++)); do
 
   # === COMMIT PHASE ===
   echo ""
-  echo "▸ COMMIT"
+  printf "${CYAN}▸ COMMIT${RESET}\n"
   step "Committing..."
   run_committer
   step_done
@@ -465,5 +475,5 @@ for ((i=1; i<=LOOPS; i++)); do
   iter_min=$((iter_elapsed / 60))
   iter_sec=$((iter_elapsed % 60))
   echo ""
-  printf "✓ Iteration %d complete (%dm%02ds)\n" "$i" "$iter_min" "$iter_sec"
+  printf "${GREEN}✓ Iteration %d complete${RESET} ${DIM}(%dm%02ds)${RESET}\n" "$i" "$iter_min" "$iter_sec"
 done
