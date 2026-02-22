@@ -316,22 +316,43 @@ run_reviewer_backend() {
   wait $!
 }
 
+run_register_task() {
+  claude --permission-mode bypassPermissions --model sonnet -p "@.claude/features.json @.ralph/plan.md \
+  You are the TASK REGISTRAR. Your job: \
+  1. Read the approved plan (.ralph/plan.md) and the current features list (.claude/features.json). \
+  2. Determine the task being planned (from the plan title/description). \
+  3. Check if an entry for this task already exists in .claude/features.json. \
+     - If it EXISTS with passes: false, do nothing — the entry is already registered. \
+     - If it DOES NOT EXIST, append a new entry with: \
+       - id: next available (e.g. if last is P2, use P3) \
+       - title: short title from the plan \
+       - passes: false \
+       - completedAt: null \
+       - summary: null \
+       - filesModified: [] \
+       - details: [] \
+  4. Do NOT modify existing entries. Do NOT change passes to true. \
+  \
+  ONLY write to .claude/features.json. Do NOT modify any other file." \
+  > "$RALPH_DIR/register-task.log" 2>&1 &
+  wait $!
+}
+
 run_committer() {
   claude --permission-mode bypassPermissions --model sonnet -p "@PRD.md @.claude/features.json @.ralph/plan.md @.ralph/implementation.md \
   You are the COMMITTER. Your job: \
   1. Read the plan (.ralph/plan.md) and implementation (.ralph/implementation.md). \
   2. Update PRD.md: mark the completed task checkboxes as [x] for what was done. \
-  3. Update features.json: find the EXISTING entry for this task and update it: \
+  3. Update .claude/features.json: find the entry for this task and update it: \
      - Set passes to true \
      - Set completedAt to today's date (YYYY-MM-DD) \
      - Set summary describing what was implemented \
      - Set filesModified with the list of files changed \
      - Set details with bullet points of what was done \
-     Do NOT append new entries. Do NOT remove existing entries. \
-     Every task from the PRD should already have an entry in features.json. \
+     Do NOT remove existing entries. Do NOT add new entries. \
   4. Stage all changed files and commit with a descriptive message. \
   \
-  Do NOT modify any source code. ONLY update PRD.md, features.json, and commit." \
+  Do NOT modify any source code. ONLY update PRD.md, .claude/features.json, and commit." \
   > "$RALPH_DIR/committer.log" 2>&1 &
   wait $!
 }
@@ -401,6 +422,11 @@ for ((i=1; i<=LOOPS; i++)); do
       plan_attempt=$((plan_attempt + 1))
     fi
   done
+
+  # === REGISTER TASK ===
+  step "Registering task..."
+  run_register_task
+  step_done
 
   # === IMPLEMENTATION PHASE ===
   task_name=$(grep -m1 "^#" .ralph/plan.md 2>/dev/null | sed 's/^#* *//' || echo "")
