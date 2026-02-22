@@ -298,7 +298,7 @@ run_reviewer_backend() {
 run_committer() {
   log "COMMITTER starting..."
 
-  claude --permission-mode bypassPermissions -p "@PRD.md @features.json @.ralph/plan.md @.ralph/implementation.md \
+  claude --permission-mode bypassPermissions --model sonnet -p "@PRD.md @features.json @.ralph/plan.md @.ralph/implementation.md \
   You are the COMMITTER. Your job: \
   1. Read the plan (.ralph/plan.md) and implementation (.ralph/implementation.md). \
   2. Update PRD.md: mark the completed task checkboxes as [x] for what was done. \
