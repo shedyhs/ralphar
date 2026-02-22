@@ -28,9 +28,9 @@ One or two sentences describing the proposed solution.
 ## Requirements
 
 ### [P0] Initial setup
-- [ ] Set up project with chosen tech stack
-- [ ] Configure linting and formatting
-- [ ] Set up testing framework
+- [x] Set up project with chosen tech stack
+- [x] Configure linting and formatting
+- [x] Set up testing framework
 
 ### [P1] Core feature
 - [ ] Describe the first user-facing feature
