@@ -215,6 +215,7 @@ run_reviewer_frontend() {
   log "REVIEWER FRONTEND starting..."
 
   claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
+  @.claude/skills/frontend-reviewer/SKILL.md \
   You are the FRONTEND REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
   2. Read what was implemented (.ralph/implementation.md). \
@@ -225,17 +226,9 @@ run_reviewer_frontend() {
      VERDICT: APPROVED \
      No frontend changes in this iteration. \
      Then stop. \
-  6. If there IS frontend code, evaluate against these criteria: \
-     a. PLAN ADHERENCE: Does the frontend code implement exactly what the plan specified? \
-     b. ACCESSIBILITY (a11y): Are semantic HTML elements used? Do interactive elements have labels, ARIA attributes, roles, and keyboard support? Is color contrast sufficient? \
-     c. PERFORMANCE: Any unnecessary re-renders? Missing useMemo/useCallback? Large bundle imports? Unoptimized images? \
-     d. UX QUALITY: Is the UI responsive? Are loading/error/empty states handled? Is feedback clear to the user? \
-     e. CODE SMELLS / DRY: Is there duplicated component logic? Should shared components or hooks be extracted? \
-     f. READABILITY: Are component and prop names clear? Is JSX easy to follow? \
-     g. SECURITY: Any XSS risks? Is user input sanitized before rendering? Dangerously set innerHTML? \
-     h. TEST COVERAGE: Do the unit and e2e tests cover UI interactions, edge cases, and error states? \
-     i. PROJECT CONVENTIONS: Does the code follow existing component patterns, naming, and file structure? \
-  7. Write your review to .ralph/review-frontend.md. For each criterion, give a brief assessment. \
+  6. If there IS frontend code, follow the review process in the frontend-reviewer skill. \
+     Use the skill's references (react-patterns, vue-patterns, vanilla-patterns) to inform your review. \
+  7. Write your review to .ralph/review-frontend.md following the skill's output format. \
   \
   Your file MUST start with exactly one of these lines: \
   VERDICT: APPROVED \
