@@ -10,7 +10,7 @@ cleanup() {
 trap cleanup INT TERM
 
 RALPH_DIR=".ralph"
-LOOPS=1
+LOOPS=100
 TASK=""
 
 usage() {
