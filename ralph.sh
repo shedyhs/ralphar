@@ -177,7 +177,7 @@ run_e2e_writer() {
 run_tester() {
   log "TESTER starting..."
 
-  claude --permission-mode bypassPermissions -p "@.ralph/implementation.md \
+  claude --permission-mode bypassPermissions --model sonnet -p "@.ralph/implementation.md \
   You are the TESTER. Your job: \
   1. Read what was implemented in .ralph/implementation.md. \
   2. Run ALL four feedback loops: \
