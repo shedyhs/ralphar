@@ -152,7 +152,7 @@ run_planner() {
   $feedback_prompt \
   \
   ONLY write to .ralph/context.md and .ralph/plan.md. Do NOT implement any code. \
-  If ALL entries in features.json have passes: true, write ONLY this to .ralph/plan.md: PRD_COMPLETE" \
+  $([ -z "$TASK" ] && echo "If ALL entries in features.json have passes: true, write ONLY this to .ralph/plan.md: PRD_COMPLETE")" \
   > "$RALPH_DIR/planner.log" 2>&1 &
   wait $!
 }
@@ -358,8 +358,8 @@ for ((i=1; i<=LOOPS; i++)); do
     run_planner "$plan_attempt"
     step_done
 
-    # Check if PRD is complete
-    if grep -q "PRD_COMPLETE" .ralph/plan.md 2>/dev/null; then
+    # Check if PRD is complete (skip when user specified a task)
+    if [ -z "$TASK" ] && grep -q "PRD_COMPLETE" .ralph/plan.md 2>/dev/null; then
       printf "  ${GREEN}PRD complete. All tasks done.${RESET}\n"
       exit 0
     fi
