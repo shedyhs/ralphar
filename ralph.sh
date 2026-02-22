@@ -257,7 +257,7 @@ run_reviewer_backend() {
   log "REVIEWER BACKEND starting..."
 
   claude --permission-mode bypassPermissions -p "@.ralph/plan.md @.ralph/implementation.md @.ralph/test-report.md \
-  @~/.claude/skills/backend-reviewer/SKILL.md \
+  @.claude/skills/backend-reviewer/SKILL.md \
   You are the BACKEND REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
   2. Read what was implemented (.ralph/implementation.md). \
