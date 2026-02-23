@@ -157,17 +157,17 @@ check_agent_output() {
 
 run_with_checkpoint() {
   local agent_fn=$1
-  local max_turns=$2
-  local max_chains=${3:-3}
-  local agent_name=$4
-  shift 4
+  local max_chains=${2:-3}
+  local agent_name=$3
+  shift 3
   local extra_args=("$@")
 
   for ((chain=1; chain<=max_chains; chain++)); do
     if [ "$chain" -gt 1 ]; then
       printf " ${DIM}(chain $chain)${RESET}"
     fi
-    $agent_fn "$max_turns" "${extra_args[@]}"
+    echo "$agent_name" > "$RALPH_DIR/current-agent"
+    $agent_fn "${extra_args[@]}"
 
     if check_agent_output "$agent_name"; then
       rm -f "$RALPH_DIR/checkpoint-${agent_name}.md"
@@ -180,11 +180,14 @@ run_with_checkpoint() {
   done
 }
 
+set_current_agent() {
+  echo "$1" > "$RALPH_DIR/current-agent"
+}
+
 # === ROLE FUNCTIONS (output redirected to log files) ===
 
 run_explorer() {
-  local max_turns=$1
-  local attempt=$2
+  local attempt=$1
 
   local feedback_prompt=""
   if [ "$attempt" -gt 1 ]; then
@@ -205,7 +208,8 @@ run_explorer() {
     Continue exploring from where you left off. Do NOT repeat work already done."
   fi
 
-  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" --max-turns "$max_turns" -p "@PRD.md @.claude/features.json \
+  echo "explorer" > "$RALPH_DIR/current-agent"
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p "@PRD.md @.claude/features.json \
   You are the EXPLORER. Your job: \
   1. Read the PRD and features.json. The SINGLE highest-priority uncompleted task is the first entry in features.json where passes is false. \
   $task_prompt \
@@ -228,8 +232,7 @@ run_explorer() {
 }
 
 run_plan_writer() {
-  local max_turns=$1
-  local attempt=$2
+  local attempt=$1
 
   local feedback_prompt=""
   if [ "$attempt" -gt 1 ]; then
@@ -250,7 +253,8 @@ run_plan_writer() {
     Continue writing the plan from where you left off."
   fi
 
-  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" --max-turns "$max_turns" -p "@PRD.md @.claude/features.json @.ralph/context.md \
+  echo "plan-writer" > "$RALPH_DIR/current-agent"
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p "@PRD.md @.claude/features.json @.ralph/context.md \
   You are the PLAN WRITER. Your job: \
   1. Read the PRD, features.json, and codebase context (.ralph/context.md). \
   $task_prompt \
@@ -281,7 +285,8 @@ run_validator() {
   local id=$1
   local focus=$2
 
-  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" --max-turns 15 -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
+  echo "validator-$id" > "$RALPH_DIR/current-agent"
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
   You are VALIDATOR $(echo "$id" | tr '[:lower:]' '[:upper:]'). Your focus: $focus. \
   \
   Read the plan in .ralph/plan.md and the codebase context in .ralph/context.md. \
@@ -301,8 +306,7 @@ run_validator() {
 }
 
 run_implementer() {
-  local max_turns=$1
-  local attempt=$2
+  local attempt=$1
 
   local review_prompt=""
   if [ "$attempt" -gt 1 ] && [ -f ".ralph/review.md" ]; then
@@ -334,7 +338,8 @@ run_implementer() {
        - Anything that deviated from the plan and why"
   fi
 
-  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" --max-turns "$max_turns" -p "@.ralph/plan.md \
+  echo "implementer" > "$RALPH_DIR/current-agent"
+  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p "@.ralph/plan.md \
   You are the IMPLEMENTER. Your job: \
   1. Read the approved plan in .ralph/plan.md. \
   2. Implement the code changes described in the plan. \
@@ -358,7 +363,8 @@ run_implementer() {
 }
 
 run_e2e_writer() {
-  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" --max-turns 30 -p "@.ralph/plan.md @.ralph/implementation.md \
+  echo "e2e-writer" > "$RALPH_DIR/current-agent"
+  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p "@.ralph/plan.md @.ralph/implementation.md \
   You are the E2E TEST WRITER. Your job: \
   1. Read the plan (.ralph/plan.md) and what was implemented (.ralph/implementation.md). \
   2. Write end-to-end tests that verify the feature works from a user perspective. \
@@ -377,7 +383,8 @@ run_e2e_writer() {
 }
 
 run_tester() {
-  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" --max-turns 15 -p "@.ralph/implementation.md \
+  echo "tester" > "$RALPH_DIR/current-agent"
+  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p "@.ralph/implementation.md \
   You are the TESTER. Your job: \
   1. Read what was implemented in .ralph/implementation.md. \
   2. Run ALL four feedback loops: \
@@ -413,7 +420,8 @@ run_reviewer_frontend() {
     test_step="3. Read the test results (.ralph/test-report.md). \\"
   fi
 
-  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" --max-turns 15 -p "@.ralph/plan.md @.ralph/implementation.md $test_ref \
+  echo "reviewer-frontend" > "$RALPH_DIR/current-agent"
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p "@.ralph/plan.md @.ralph/implementation.md $test_ref \
   @.claude/skills/frontend-reviewer/SKILL.md \
   You are the FRONTEND REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
@@ -449,7 +457,8 @@ run_reviewer_backend() {
     test_step="3. Read the test results (.ralph/test-report.md). \\"
   fi
 
-  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" --max-turns 15 -p "@.ralph/plan.md @.ralph/implementation.md $test_ref \
+  echo "reviewer-backend" > "$RALPH_DIR/current-agent"
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p "@.ralph/plan.md @.ralph/implementation.md $test_ref \
   @.claude/skills/backend-reviewer/SKILL.md \
   You are the BACKEND REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
@@ -478,7 +487,8 @@ run_reviewer_backend() {
 }
 
 run_register_task() {
-  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" --max-turns 10 -p "@.claude/features.json @.ralph/plan.md \
+  echo "register-task" > "$RALPH_DIR/current-agent"
+  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p "@.claude/features.json @.ralph/plan.md \
   You are the TASK REGISTRAR. Your job: \
   1. Read the approved plan (.ralph/plan.md) and the current features list (.claude/features.json). \
   2. Determine the task being planned (from the plan title/description). \
@@ -500,7 +510,8 @@ run_register_task() {
 }
 
 run_committer() {
-  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" --max-turns 10 -p "@PRD.md @.claude/features.json @.ralph/plan.md @.ralph/implementation.md \
+  echo "committer" > "$RALPH_DIR/current-agent"
+  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p "@PRD.md @.claude/features.json @.ralph/plan.md @.ralph/implementation.md \
   You are the COMMITTER. Your job: \
   1. Read the plan (.ralph/plan.md) and implementation (.ralph/implementation.md). \
   2. Update PRD.md: mark the completed task checkboxes as [x] for what was done. \
@@ -537,11 +548,11 @@ for ((i=1; i<=LOOPS; i++)); do
     printf "${CYAN}▸ PLANNING${RESET} ${DIM}(attempt $plan_attempt)${RESET}\n"
 
     step "Exploring..."
-    run_with_checkpoint run_explorer 30 3 "explorer" "$plan_attempt"
+    run_with_checkpoint run_explorer 3 "explorer" "$plan_attempt"
     step_done
 
     step "Writing plan..."
-    run_with_checkpoint run_plan_writer 20 3 "plan-writer" "$plan_attempt"
+    run_with_checkpoint run_plan_writer 3 "plan-writer" "$plan_attempt"
     step_done
 
     # Check if PRD is complete (skip when user specified a task)
@@ -623,7 +634,7 @@ for ((i=1; i<=LOOPS; i++)); do
     fi
 
     step "Implementing..."
-    run_with_checkpoint run_implementer 50 3 "implementer" "$impl_attempt"
+    run_with_checkpoint run_implementer 3 "implementer" "$impl_attempt"
     step_done
 
     if [ "$SKIP_TESTS" = false ]; then
@@ -638,6 +649,23 @@ for ((i=1; i<=LOOPS; i++)); do
       ts=$(test_status "TESTS")
       lt=$(test_status "LINT")
       step_done "typecheck:$tc  build:$bd  test:$ts  lint:$lt"
+
+      # If any test failed, skip review and go back to implementer
+      tests_passed=true
+      for check in TYPECHECK BUILD TESTS LINT; do
+        if ! grep -q "^${check}: PASS" .ralph/test-report.md 2>/dev/null; then
+          tests_passed=false
+          break
+        fi
+      done
+
+      if [ "$tests_passed" = false ]; then
+        printf "    ${RED}Tests failed — skipping review, back to implementer${RESET}\n"
+        cat .ralph/test-report.md > .ralph/review.md 2>/dev/null || true
+        rm -f "$RALPH_DIR/checkpoint-implementer.md"
+        impl_attempt=$((impl_attempt + 1))
+        continue
+      fi
     fi
 
     step "Reviewing..."
