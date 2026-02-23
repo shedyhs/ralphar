@@ -622,7 +622,7 @@ for ((i=1; i<=LOOPS; i++)); do
     fi
 
     step "Implementing..."
-    run_implementer "$impl_attempt"
+    run_with_checkpoint run_implementer 50 3 "implementer" "$impl_attempt"
     step_done
 
     if [ "$SKIP_TESTS" = false ]; then
