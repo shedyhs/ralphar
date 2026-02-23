@@ -145,6 +145,41 @@ slugify() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g;s/--*/-/g;s/^-//;s/-$//' | cut -c1-50
 }
 
+check_agent_output() {
+  local agent_name=$1
+  case "$agent_name" in
+    explorer)     [ -f "$RALPH_DIR/context.md" ] ;;
+    plan-writer)  [ -f "$RALPH_DIR/plan.md" ] ;;
+    implementer)  [ -f "$RALPH_DIR/implementation.md" ] ;;
+    *)            return 0 ;;
+  esac
+}
+
+run_with_checkpoint() {
+  local agent_fn=$1
+  local max_turns=$2
+  local max_chains=${3:-3}
+  local agent_name=$4
+  shift 4
+  local extra_args=("$@")
+
+  for ((chain=1; chain<=max_chains; chain++)); do
+    if [ "$chain" -gt 1 ]; then
+      printf " ${DIM}(chain $chain)${RESET}"
+    fi
+    $agent_fn "$max_turns" "${extra_args[@]}"
+
+    if check_agent_output "$agent_name"; then
+      rm -f "$RALPH_DIR/checkpoint-${agent_name}.md"
+      return 0
+    fi
+
+    if [ ! -f "$RALPH_DIR/checkpoint-${agent_name}.md" ]; then
+      return 0
+    fi
+  done
+}
+
 # === ROLE FUNCTIONS (output redirected to log files) ===
 
 run_planner() {
