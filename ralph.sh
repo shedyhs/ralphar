@@ -470,11 +470,6 @@ for ((i=1; i<=LOOPS; i++)); do
     fi
   done
 
-  # === REGISTER TASK ===
-  step "Registering task..."
-  run_register_task
-  step_done
-
   # === CREATE FEATURE BRANCH ===
   task_name=$(grep -m1 "^#" .ralph/plan.md 2>/dev/null | sed 's/^#* *//' || echo "")
   branch_slug=$(slugify "$task_name")
@@ -492,6 +487,11 @@ for ((i=1; i<=LOOPS; i++)); do
   step "Creating branch..."
   git checkout -b "$FEATURE_BRANCH"
   step_done "$FEATURE_BRANCH"
+
+  # === REGISTER TASK ===
+  step "Registering task..."
+  run_register_task
+  step_done
 
   # === IMPLEMENTATION PHASE ===
   impl_attempt=1
