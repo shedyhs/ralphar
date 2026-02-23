@@ -536,8 +536,12 @@ for ((i=1; i<=LOOPS; i++)); do
     echo ""
     printf "${CYAN}▸ PLANNING${RESET} ${DIM}(attempt $plan_attempt)${RESET}\n"
 
-    step "Planning..."
-    run_planner "$plan_attempt"
+    step "Exploring..."
+    run_with_checkpoint run_explorer 30 3 "explorer" "$plan_attempt"
+    step_done
+
+    step "Writing plan..."
+    run_with_checkpoint run_plan_writer 20 3 "plan-writer" "$plan_attempt"
     step_done
 
     # Check if PRD is complete (skip when user specified a task)
