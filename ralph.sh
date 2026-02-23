@@ -227,6 +227,56 @@ run_explorer() {
   wait $!
 }
 
+run_plan_writer() {
+  local max_turns=$1
+  local attempt=$2
+
+  local feedback_prompt=""
+  if [ "$attempt" -gt 1 ]; then
+    feedback_prompt="Previous validator feedback that you MUST address: \
+    @.ralph/validation-a.md @.ralph/validation-b.md @.ralph/validation-c.md \
+    Carefully read ALL feedback and adjust your plan to address every issue raised."
+  fi
+
+  local task_prompt=""
+  if [ -n "$TASK" ]; then
+    task_prompt="THE USER HAS SPECIFIED A TASK: $TASK \
+    You MUST plan this specific task instead of picking from features.json."
+  fi
+
+  local checkpoint_prompt=""
+  if [ -f "$RALPH_DIR/checkpoint-plan-writer.md" ]; then
+    checkpoint_prompt="CONTINUE FROM CHECKPOINT: Read @.ralph/checkpoint-plan-writer.md for your previous progress. \
+    Continue writing the plan from where you left off."
+  fi
+
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" --max-turns "$max_turns" -p "@PRD.md @.claude/features.json @.ralph/context.md \
+  You are the PLAN WRITER. Your job: \
+  1. Read the PRD, features.json, and codebase context (.ralph/context.md). \
+  $task_prompt \
+  2. Write a detailed implementation plan to .ralph/plan.md with: \
+     - Which task from the PRD you chose and why \
+     - Exact files to create or modify \
+     - Step-by-step implementation approach \
+     - Edge cases to handle \
+  \
+  $feedback_prompt \
+  $checkpoint_prompt \
+  \
+  Do NOT explore the codebase — all context is in .ralph/context.md. \
+  Do NOT implement any code. ONLY write to .ralph/plan.md. \
+  $([ -z "$TASK" ] && echo "If ALL entries in features.json have passes: true, write ONLY this to .ralph/plan.md: PRD_COMPLETE") \
+  \
+  CHECKPOINT: If you cannot complete the plan, save a detailed progress summary \
+  to .ralph/checkpoint-plan-writer.md including: \
+  - What you have planned so far \
+  - What sections remain \
+  - Key decisions made and why \
+  This allows a new session to continue where you left off." \
+  > "$RALPH_DIR/plan-writer.log" 2>&1 &
+  wait $!
+}
+
 run_validator() {
   local id=$1
   local focus=$2
