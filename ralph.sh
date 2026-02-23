@@ -584,6 +584,7 @@ for ((i=1; i<=LOOPS; i++)); do
       print_rejection "A" ".ralph/validation-a.md"
       print_rejection "B" ".ralph/validation-b.md"
       print_rejection "C" ".ralph/validation-c.md"
+      rm -f "$RALPH_DIR/checkpoint-explorer.md" "$RALPH_DIR/checkpoint-plan-writer.md"
       plan_attempt=$((plan_attempt + 1))
     fi
   done
@@ -670,6 +671,7 @@ for ((i=1; i<=LOOPS; i++)); do
       echo "---" >> .ralph/review.md
       echo "" >> .ralph/review.md
       cat .ralph/review-backend.md >> .ralph/review.md 2>/dev/null || true
+      rm -f "$RALPH_DIR/checkpoint-implementer.md"
       impl_attempt=$((impl_attempt + 1))
     fi
   done
