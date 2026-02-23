@@ -8,7 +8,13 @@ An autonomous coding pipeline powered by [Claude Code](https://docs.anthropic.co
 ./ralph.sh add user authentication --loop=3
 ```
 
-Ralph reads your `PRD.md` and `.claude/features.json`, then runs an iterative pipeline:
+Ralph reads your `PRD.md` and `.claude/features.json`, then runs an iterative pipeline. Each iteration works on an isolated feature branch that gets merged back to main via fast-forward:
+
+```
+main ──┬── feature/p1-core-feature ── commits ── merge FF ──┬── feature/p2-secondary ── ...
+       │                                                     │
+       └─────────────────────────────────────────────────────┘
+```
 
 ```
                     PLANNING PHASE
@@ -30,6 +36,14 @@ Ralph reads your `PRD.md` and `.claude/features.json`, then runs an iterative pi
                           │
                          yes
                           ▼
+                 ┌─────────────────┐
+                 │ FEATURE BRANCH  │  git checkout -b feature/<slug>
+                 └────────┬────────┘
+                          │
+                     ┌──────────┐
+                     │REGISTRAR │  Registers task in features.json
+                     └────┬─────┘
+                          │
                  IMPLEMENTATION PHASE
                  ───────────────────
                      ┌──────────┐
@@ -58,12 +72,16 @@ Ralph reads your `PRD.md` and `.claude/features.json`, then runs an iterative pi
                           │
                          yes
                           ▼
-                    COMMIT PHASE
-                    ────────────
+                    COMMIT & MERGE
+                    ──────────────
                      ┌──────────┐
                      │COMMITTER │  Updates PRD, features.json,
                      │          │  git commit
-                     └──────────┘
+                     └────┬─────┘
+                          │
+                 ┌─────────────────┐
+                 │ MERGE TO MAIN   │  git merge --ff-only
+                 └─────────────────┘
 ```
 
 ## The Agents
@@ -82,6 +100,20 @@ Ralph reads your `PRD.md` and `.claude/features.json`, then runs an iterative pi
 | 10 | **Committer** | Updates PRD.md + features.json, creates git commit | Sequential |
 
 Reviewers auto-approve if the change doesn't include code in their domain.
+
+## Gitflow
+
+Each iteration runs on an isolated feature branch derived from main:
+
+1. Plan is approved on main
+2. `feature/<task-slug>` branch is created
+3. Task is registered in `features.json` (on the feature branch)
+4. Implementation, testing, and review happen on the feature branch
+5. Committer commits on the feature branch
+6. Branch is merged to main via `--ff-only` (fast-forward only)
+7. Feature branch is deleted
+
+If the merge fails (main diverged), the script exits and preserves the feature branch for manual resolution. On `Ctrl+C`, ralph returns to main and preserves the feature branch for inspection.
 
 ## Quality Loops
 
@@ -107,6 +139,9 @@ All agent stdout is redirected to `.ralph/*.log` files. The pipeline prints a co
   Task: P0 Initial Setup
   Validating...         A:✓  B:✓  C:✓ — APPROVED (0m58s)
 
+  Creating branch...    feature/p0-initial-setup (0m00s)
+  Registering task...   done (0m32s)
+
 ▸ IMPLEMENTATION (attempt 1) — P0 Initial Setup
   Implementing...       done (4m22s)
   Writing e2e tests...  done (1m15s)
@@ -115,6 +150,7 @@ All agent stdout is redirected to `.ralph/*.log` files. The pipeline prints a co
 
 ▸ COMMIT
   Committing...         done (0m45s)
+  Merging to main...    done (0m01s)
 
 ✓ Iteration 1 complete (14m32s)
 ```
@@ -205,7 +241,7 @@ After ralph completes a task, the committer updates the entry:
 
 ## Stopping
 
-Press `Ctrl+C` to stop — all child processes are killed immediately.
+Press `Ctrl+C` to stop — all child processes are killed immediately. If a feature branch is active, ralph returns to main and preserves the branch for inspection.
 
 ## License
 
