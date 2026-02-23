@@ -301,13 +301,20 @@ run_validator() {
 }
 
 run_implementer() {
-  local attempt=$1
+  local max_turns=$1
+  local attempt=$2
 
   local review_prompt=""
   if [ "$attempt" -gt 1 ] && [ -f ".ralph/review.md" ]; then
     review_prompt="The reviewer REJECTED your previous implementation. \
     Read the review at @.ralph/review.md and fix ALL issues listed. \
     Also read @.ralph/test-report.md for test results."
+  fi
+
+  local checkpoint_prompt=""
+  if [ -f "$RALPH_DIR/checkpoint-implementer.md" ]; then
+    checkpoint_prompt="CONTINUE FROM CHECKPOINT: Read @.ralph/checkpoint-implementer.md for your previous progress. \
+    Continue implementing from where you left off. Do NOT redo completed work."
   fi
 
   local test_instructions=""
@@ -327,16 +334,25 @@ run_implementer() {
        - Anything that deviated from the plan and why"
   fi
 
-  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p "@.ralph/plan.md \
+  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" --max-turns "$max_turns" -p "@.ralph/plan.md \
   You are the IMPLEMENTER. Your job: \
   1. Read the approved plan in .ralph/plan.md. \
   2. Implement the code changes described in the plan. \
   $test_instructions \
   \
   $review_prompt \
+  $checkpoint_prompt \
   \
   Follow the plan precisely. Do NOT add features not in the plan. \
-  Do NOT commit. Do NOT modify PRD.md or features.json." \
+  Do NOT commit. Do NOT modify PRD.md or features.json. \
+  \
+  CHECKPOINT: If you cannot complete your implementation, save a detailed progress summary \
+  to .ralph/checkpoint-implementer.md including: \
+  - What you have already implemented \
+  - What files were created or modified \
+  - What remains to be done \
+  - Any test results so far \
+  This allows a new session to continue where you left off." \
   > "$RALPH_DIR/implementer.log" 2>&1 &
   wait $!
 }
