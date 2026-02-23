@@ -16,7 +16,7 @@ cleanup() {
 trap cleanup INT TERM
 
 RALPH_DIR=".ralph"
-LOOPS=100
+LOOPS=""
 TASK=""
 FEATURE_BRANCH=""
 SKIP_TESTS=false
@@ -49,6 +49,15 @@ if [ ${#task_words[@]} -gt 0 ]; then
   TASK="${task_words[*]}"
 fi
 
+# Default loops: 1 if task specified, 100 if picking from PRD
+if [ -z "$LOOPS" ]; then
+  if [ -n "$TASK" ]; then
+    LOOPS=1
+  else
+    LOOPS=100
+  fi
+fi
+
 if ! [ "$LOOPS" -ge 1 ] 2>/dev/null; then
   echo "Error: --loop must be a positive number"
   usage
@@ -56,13 +65,13 @@ fi
 
 # === COLORS ===
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-DIM='\033[2m'
-RESET='\033[0m'
+RED=$'\033[0;31m'
+GREEN=$'\033[0;32m'
+YELLOW=$'\033[0;33m'
+CYAN=$'\033[0;36m'
+BOLD=$'\033[1m'
+DIM=$'\033[2m'
+RESET=$'\033[0m'
 
 # === LOGGING HELPERS ===
 
