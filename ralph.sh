@@ -281,7 +281,7 @@ run_validator() {
   local id=$1
   local focus=$2
 
-  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" --max-turns 15 -p "@PRD.md @.ralph/context.md @.ralph/plan.md \
   You are VALIDATOR $(echo "$id" | tr '[:lower:]' '[:upper:]'). Your focus: $focus. \
   \
   Read the plan in .ralph/plan.md and the codebase context in .ralph/context.md. \
@@ -358,7 +358,7 @@ run_implementer() {
 }
 
 run_e2e_writer() {
-  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p "@.ralph/plan.md @.ralph/implementation.md \
+  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" --max-turns 30 -p "@.ralph/plan.md @.ralph/implementation.md \
   You are the E2E TEST WRITER. Your job: \
   1. Read the plan (.ralph/plan.md) and what was implemented (.ralph/implementation.md). \
   2. Write end-to-end tests that verify the feature works from a user perspective. \
@@ -377,7 +377,7 @@ run_e2e_writer() {
 }
 
 run_tester() {
-  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p "@.ralph/implementation.md \
+  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" --max-turns 15 -p "@.ralph/implementation.md \
   You are the TESTER. Your job: \
   1. Read what was implemented in .ralph/implementation.md. \
   2. Run ALL four feedback loops: \
@@ -413,7 +413,7 @@ run_reviewer_frontend() {
     test_step="3. Read the test results (.ralph/test-report.md). \\"
   fi
 
-  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p "@.ralph/plan.md @.ralph/implementation.md $test_ref \
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" --max-turns 15 -p "@.ralph/plan.md @.ralph/implementation.md $test_ref \
   @.claude/skills/frontend-reviewer/SKILL.md \
   You are the FRONTEND REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
@@ -449,7 +449,7 @@ run_reviewer_backend() {
     test_step="3. Read the test results (.ralph/test-report.md). \\"
   fi
 
-  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p "@.ralph/plan.md @.ralph/implementation.md $test_ref \
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" --max-turns 15 -p "@.ralph/plan.md @.ralph/implementation.md $test_ref \
   @.claude/skills/backend-reviewer/SKILL.md \
   You are the BACKEND REVIEWER. Your job: \
   1. Read the approved plan (.ralph/plan.md). \
@@ -478,7 +478,7 @@ run_reviewer_backend() {
 }
 
 run_register_task() {
-  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p "@.claude/features.json @.ralph/plan.md \
+  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" --max-turns 10 -p "@.claude/features.json @.ralph/plan.md \
   You are the TASK REGISTRAR. Your job: \
   1. Read the approved plan (.ralph/plan.md) and the current features list (.claude/features.json). \
   2. Determine the task being planned (from the plan title/description). \
@@ -500,7 +500,7 @@ run_register_task() {
 }
 
 run_committer() {
-  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p "@PRD.md @.claude/features.json @.ralph/plan.md @.ralph/implementation.md \
+  claude --permission-mode bypassPermissions --model "$MODEL_WORKER" --max-turns 10 -p "@PRD.md @.claude/features.json @.ralph/plan.md @.ralph/implementation.md \
   You are the COMMITTER. Your job: \
   1. Read the plan (.ralph/plan.md) and implementation (.ralph/implementation.md). \
   2. Update PRD.md: mark the completed task checkboxes as [x] for what was done. \
