@@ -182,39 +182,48 @@ run_with_checkpoint() {
 
 # === ROLE FUNCTIONS (output redirected to log files) ===
 
-run_planner() {
-  local attempt=$1
+run_explorer() {
+  local max_turns=$1
+  local attempt=$2
 
   local feedback_prompt=""
   if [ "$attempt" -gt 1 ]; then
     feedback_prompt="Previous validator feedback that you MUST address: \
     @.ralph/validation-a.md @.ralph/validation-b.md @.ralph/validation-c.md \
-    Carefully read ALL feedback and adjust your plan to address every issue raised."
+    Carefully read ALL feedback — the plan was rejected. Explore additional context to address the issues."
   fi
 
   local task_prompt=""
   if [ -n "$TASK" ]; then
     task_prompt="THE USER HAS SPECIFIED A TASK: $TASK \
-    You MUST plan this specific task instead of picking from features.json."
+    You MUST explore context for this specific task instead of picking from features.json."
   fi
 
-  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p "@PRD.md @.claude/features.json \
-  You are the PLANNER. Your job: \
+  local checkpoint_prompt=""
+  if [ -f "$RALPH_DIR/checkpoint-explorer.md" ]; then
+    checkpoint_prompt="CONTINUE FROM CHECKPOINT: Read @.ralph/checkpoint-explorer.md for your previous progress. \
+    Continue exploring from where you left off. Do NOT repeat work already done."
+  fi
+
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" --max-turns "$max_turns" -p "@PRD.md @.claude/features.json \
+  You are the EXPLORER. Your job: \
   1. Read the PRD and features.json. The SINGLE highest-priority uncompleted task is the first entry in features.json where passes is false. \
   $task_prompt \
   2. Use the Task tool with subagent_type=Explore to dispatch 2-3 parallel subagents to search the codebase for relevant context (existing files, patterns, dependencies). \
   3. Write your findings to .ralph/context.md (what you found in the codebase). \
-  4. Write a detailed implementation plan to .ralph/plan.md with: \
-     - Which task from the PRD you chose and why \
-     - Exact files to create or modify \
-     - Step-by-step implementation approach \
-     - Edge cases to handle \
   \
   $feedback_prompt \
+  $checkpoint_prompt \
   \
-  ONLY write to .ralph/context.md and .ralph/plan.md. Do NOT implement any code. \
-  $([ -z "$TASK" ] && echo "If ALL entries in features.json have passes: true, write ONLY this to .ralph/plan.md: PRD_COMPLETE")" \
-  > "$RALPH_DIR/planner.log" 2>&1 &
+  ONLY write to .ralph/context.md. Do NOT write a plan. Do NOT implement any code. \
+  \
+  CHECKPOINT: If you cannot complete your exploration, save a detailed progress summary \
+  to .ralph/checkpoint-explorer.md including: \
+  - What you have already explored \
+  - What remains to explore \
+  - Files and patterns discovered so far \
+  This allows a new session to continue where you left off." \
+  > "$RALPH_DIR/explorer.log" 2>&1 &
   wait $!
 }
 
