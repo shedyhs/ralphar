@@ -105,8 +105,28 @@
     </div>
 
     <script>
-        // JavaScript will go here
-        console.log('Game loaded');
+        // Constants
+        const WINNING_LINES = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+            [0, 4, 8], [2, 4, 6]             // diagonals
+        ];
+
+        // Game state
+        const game = {
+            board: Array(9).fill(null),
+            currentPlayer: 'X',
+            isGameOver: false,
+            winner: null
+        };
+
+        // DOM elements
+        const boardEl = document.getElementById('board');
+        const statusEl = document.getElementById('status');
+        const newGameBtn = document.getElementById('new-game');
+        const cells = document.querySelectorAll('.cell');
+
+        console.log('Game state initialized', game);
     </script>
 </body>
 </html>
