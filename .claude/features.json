@@ -30,11 +30,31 @@
   {
     "id": "P1",
     "title": "Single Player vs AI",
-    "passes": false,
-    "completedAt": null,
-    "summary": null,
-    "filesModified": [],
-    "details": []
+    "passes": true,
+    "completedAt": "2026-02-24",
+    "summary": "Complete AI opponent implementation with 3-button mode selection (Play as X, Play as O, Local). AI uses priority-based strategy: win > block > center > corner > any. Includes 300ms response delay, click guard protection, and comprehensive E2E test coverage (145/145 tests passing)",
+    "filesModified": [
+      "index.html",
+      "e2e/ai-logic.spec.js",
+      "e2e/ai-user-journeys.spec.js",
+      "e2e/board-rendering.spec.js",
+      "e2e/game-state.spec.js",
+      "e2e/user-interactions.spec.js",
+      "e2e/complete-gameplay.spec.js",
+      "e2e/localstorage-persistence.spec.js"
+    ],
+    "details": [
+      "Added 3-button mode selection UI (Play as X vs AI, Play as O vs AI, vs Player local)",
+      "Extended game state with mode, playerSymbol, and aiSymbol tracking",
+      "Implemented AI logic with priority-based move selection (win/block/center/corner/any)",
+      "Added AI auto-response after player moves with 300ms delay for natural feel",
+      "Implemented click guard at top of handleCellClick to prevent player hijacking AI turn",
+      "Added AI first move logic in resetGame when player chooses O",
+      "Created 31 AI integration tests covering logic, game flow, and edge cases",
+      "Created 19 E2E user journey tests covering complete gameplay scenarios",
+      "Added Change Mode button for navigation back to mode selection",
+      "Updated all existing P0 tests to work with mode selection flow"
+    ]
   },
   {
     "id": "P2",

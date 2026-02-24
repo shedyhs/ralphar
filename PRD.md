@@ -46,10 +46,10 @@ A single HTML file with embedded CSS and JavaScript using native WebRTC APIs for
 - [x] Add core game state management (turn tracking, win detection, draw detection)
 
 ### [P1] Single Player vs AI
-- [ ] Implement medium-difficulty AI that blocks opponent winning moves
-- [ ] AI takes winning opportunities when available
-- [ ] AI makes reasonable strategic moves when no immediate threats or opportunities exist
-- [ ] Player can choose to be X or O before starting
+- [x] Implement medium-difficulty AI that blocks opponent winning moves
+- [x] AI takes winning opportunities when available
+- [x] AI makes reasonable strategic moves when no immediate threats or opportunities exist
+- [x] Player can choose to be X or O before starting
 
 ### [P2] Score Tracking
 - [ ] Track wins, losses, and draws separately for single-player and multiplayer modes
