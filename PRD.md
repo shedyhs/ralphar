@@ -40,10 +40,10 @@ A single HTML file with embedded CSS and JavaScript using native WebRTC APIs for
 ## Requirements
 
 ### [P0] Project Foundation
-- [ ] Create single HTML file structure with embedded CSS and JavaScript sections
-- [ ] Set up localStorage integration for score persistence
-- [ ] Implement basic 3x3 game board rendering with DOM manipulation
-- [ ] Add core game state management (turn tracking, win detection, draw detection)
+- [x] Create single HTML file structure with embedded CSS and JavaScript sections
+- [x] Set up localStorage integration for score persistence
+- [x] Implement basic 3x3 game board rendering with DOM manipulation
+- [x] Add core game state management (turn tracking, win detection, draw detection)
 
 ### [P1] Single Player vs AI
 - [ ] Implement medium-difficulty AI that blocks opponent winning moves
