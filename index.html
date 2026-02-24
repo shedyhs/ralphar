@@ -106,6 +106,22 @@
     </div>
     <div id="game-container" class="hidden">
         <div class="status" id="status">Player X's turn</div>
+
+        <div id="score-display">
+            <div id="sp-scores" class="score-row hidden">
+                <span class="score-label">vs AI:</span>
+                <span>W: <span id="sp-wins">0</span></span>
+                <span>L: <span id="sp-losses">0</span></span>
+                <span>D: <span id="sp-draws">0</span></span>
+            </div>
+            <div id="mp-scores" class="score-row hidden">
+                <span class="score-label">Local:</span>
+                <span>X: <span id="mp-x-wins">0</span></span>
+                <span>O: <span id="mp-o-wins">0</span></span>
+                <span>D: <span id="mp-draws">0</span></span>
+            </div>
+        </div>
+
         <div class="board" id="board">
             <button class="cell" data-index="0"></button>
             <button class="cell" data-index="1"></button>
@@ -147,7 +163,7 @@
 
         const scores = {
             singlePlayer: { wins: 0, losses: 0, draws: 0 },
-            multiplayer: { wins: 0, losses: 0, draws: 0 }
+            multiplayer: { xWins: 0, oWins: 0, draws: 0 }
         };
 
         // Load scores from localStorage
@@ -156,11 +172,19 @@
                 const saved = localStorage.getItem(STORAGE_KEY);
                 if (saved) {
                     const parsed = JSON.parse(saved);
-                    Object.assign(scores.singlePlayer, parsed.singlePlayer);
-                    Object.assign(scores.multiplayer, parsed.multiplayer);
+                    if (parsed.singlePlayer) {
+                        Object.assign(scores.singlePlayer, parsed.singlePlayer);
+                    }
+                    if (parsed.multiplayer) {
+                        // Handle migration from old structure
+                        if ('xWins' in parsed.multiplayer) {
+                            Object.assign(scores.multiplayer, parsed.multiplayer);
+                        }
+                        // Old structure had wins/losses/draws - reset to new format
+                    }
                 }
             } catch (e) {
-                console.warn('Failed to load scores:', e);
+                console.error('Failed to load scores:', e);
             }
         }
 
@@ -255,6 +279,11 @@
             game.isGameOver = false;
             game.winner = null;
             updateUI();
+
+            // Trigger AI first move if AI is X
+            if (game.mode === 'ai' && game.aiSymbol === 'X') {
+                setTimeout(makeAIMove, 300);
+            }
         }
 
         function startLocalGame() {
