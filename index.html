@@ -136,7 +136,10 @@
             board: Array(9).fill(null),
             currentPlayer: 'X',
             isGameOver: false,
-            winner: null
+            winner: null,
+            mode: null,
+            playerSymbol: null,
+            aiSymbol: null
         };
 
         // Score state
@@ -175,6 +178,9 @@
         const statusEl = document.getElementById('status');
         const newGameBtn = document.getElementById('new-game');
         const cells = document.querySelectorAll('.cell');
+        const modeSelectionEl = document.getElementById('mode-selection');
+        const gameContainerEl = document.getElementById('game-container');
+        const changeModeBtn = document.getElementById('change-mode');
 
         console.log('Game state initialized', game);
 
