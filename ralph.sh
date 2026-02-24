@@ -522,12 +522,297 @@ run_committer() {
      - Set filesModified with the list of files changed \
      - Set details with bullet points of what was done \
      Do NOT remove existing entries. Do NOT add new entries. \
-  4. Stage all changed files and commit with a descriptive message. \
+  4. Run 'git add -A' to stage ALL files (source, tests, configs — everything). Then commit with a descriptive message. \
+     IMPORTANT: You MUST use 'git add -A' — do NOT selectively add files. Other agents may have created files that need to be included. \
   \
   Do NOT modify any source code. ONLY update PRD.md, .claude/features.json, and commit." \
   > "$RALPH_DIR/committer.log" 2>&1 &
   wait $!
 }
+
+# === PRD CREATION ===
+if [ ! -f "PRD.md" ]; then
+  echo ""
+  printf "${BOLD}───── PRD NOT FOUND ─────${RESET}\n"
+  printf "  ${YELLOW}No PRD.md detected. Starting PRD creation...${RESET}\n"
+
+  mkdir -p "$RALPH_DIR"
+  mkdir -p .claude
+
+  # --- PHASE 1: INTERVIEW ---
+  echo ""
+  printf "${CYAN}▸ INTERVIEW${RESET}\n"
+
+  # Initialize interview file
+  echo "# Interview Notes" > "$RALPH_DIR/interview.md"
+  echo "" >> "$RALPH_DIR/interview.md"
+
+  question_num=0
+  while true; do
+    question_num=$((question_num + 1))
+
+    # Run interviewer agent — outputs JSON to stdout
+    interviewer_output=$(claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p \
+      "@.ralph/interview.md \
+      You are the INTERVIEWER for PRD creation. Your job is to ask ONE question at a time \
+      to understand what the user wants to build. \
+      \
+      Read the interview history in .ralph/interview.md. Based on what you know so far, \
+      decide: do you have enough information to define the project, or do you need to ask more? \
+      \
+      RULES: \
+      - Ask about: what to build, the problem it solves, target users, key features, tech preferences, what is out of scope \
+      - ONE question per invocation \
+      - Prefer multiple choice when possible (2-4 options) \
+      - Open-ended is fine for the first question or when choices don't make sense \
+      - When you have enough info, output DONE \
+      \
+      OUTPUT FORMAT — you MUST output ONLY raw JSON, no markdown, no backticks, no explanation: \
+      \
+      If asking a question with options: \
+      {\"status\":\"QUESTION\",\"question\":\"Your question here?\",\"options\":[\"Option A\",\"Option B\",\"Option C\"]} \
+      \
+      If asking an open-ended question: \
+      {\"status\":\"QUESTION\",\"question\":\"Your question here?\",\"options\":[]} \
+      \
+      If you have enough information: \
+      {\"status\":\"DONE\"} \
+      \
+      ONLY output the JSON object. Nothing else. No text before or after." 2>/dev/null)
+
+    # Parse the JSON status
+    status=$(echo "$interviewer_output" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+    if [ "$status" = "DONE" ]; then
+      printf "  ${GREEN}Interview complete (%d questions)${RESET}\n" "$((question_num - 1))"
+      break
+    fi
+
+    if [ "$status" != "QUESTION" ]; then
+      # Retry if output was malformed
+      question_num=$((question_num - 1))
+      continue
+    fi
+
+    # Extract question and options
+    question=$(echo "$interviewer_output" | grep -o '"question":"[^"]*"' | head -1 | cut -d'"' -f4)
+    options_raw=$(echo "$interviewer_output" | grep -o '"options":\[[^]]*\]' | head -1 | sed 's/"options"://')
+
+    echo ""
+    printf "  ${BOLD}Q%d: %s${RESET}\n" "$question_num" "$question"
+
+    # Check if there are options
+    if [ "$options_raw" != "[]" ] && [ -n "$options_raw" ]; then
+      # Parse options array
+      option_count=0
+      while IFS= read -r opt; do
+        option_count=$((option_count + 1))
+        printf "    ${CYAN}%d)${RESET} %s\n" "$option_count" "$opt"
+      done < <(echo "$options_raw" | tr -d '[]' | sed 's/","/\n/g' | sed 's/^"//;s/"$//')
+
+      printf "    ${DIM}%d) Other (type your answer)${RESET}\n" "$((option_count + 1))"
+      printf "\n  > "
+      read -r user_input
+
+      # If user typed a number, resolve to option text
+      if [[ "$user_input" =~ ^[0-9]+$ ]] && [ "$user_input" -ge 1 ] && [ "$user_input" -le "$option_count" ]; then
+        answer=$(echo "$options_raw" | tr -d '[]' | sed 's/","/\n/g' | sed 's/^"//;s/"$//' | sed -n "${user_input}p")
+      else
+        answer="$user_input"
+      fi
+    else
+      printf "\n  > "
+      read -r answer
+    fi
+
+    # Append to interview notes
+    echo "## Q${question_num}: ${question}" >> "$RALPH_DIR/interview.md"
+    echo "**Answer:** ${answer}" >> "$RALPH_DIR/interview.md"
+    echo "" >> "$RALPH_DIR/interview.md"
+  done
+
+  # --- PHASE 2: ARCHITECT ---
+  echo ""
+  printf "${CYAN}▸ ARCHITECT${RESET}\n"
+  step "Proposing approaches..."
+
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p \
+    "@.ralph/interview.md \
+    You are the ARCHITECT. Read the interview notes and propose 2-3 different approaches \
+    for building this project. \
+    \
+    Write to .ralph/approaches.md with this format: \
+    \
+    # Proposed Approaches \
+    \
+    ## Approach 1: <name> (Recommended) \
+    **Summary:** one sentence \
+    **Tech:** key technologies \
+    **Pros:** bullet points \
+    **Cons:** bullet points \
+    \
+    ## Approach 2: <name> \
+    (same format) \
+    \
+    ## Approach 3: <name> (optional, only if meaningfully different) \
+    (same format) \
+    \
+    Focus on meaningful differences (architecture, tech stack, complexity). \
+    Do NOT write code. ONLY write to .ralph/approaches.md." \
+    > "$RALPH_DIR/architect.log" 2>&1 &
+  wait $!
+  step_done
+
+  # Show approaches and let user choose
+  echo ""
+  echo "─────────────────────────────────────────"
+  cat "$RALPH_DIR/approaches.md" 2>/dev/null
+  echo "─────────────────────────────────────────"
+  echo ""
+
+  # Count approaches
+  approach_count=$(grep -c "^## Approach" "$RALPH_DIR/approaches.md" 2>/dev/null || echo "0")
+  printf "  ${BOLD}Which approach?${RESET} "
+  for ((a=1; a<=approach_count; a++)); do
+    printf "[${CYAN}%d${RESET}] " "$a"
+  done
+  printf "> "
+  read -r chosen_approach
+
+  # Save choice
+  echo "Chosen approach: $chosen_approach" > "$RALPH_DIR/chosen-approach.md"
+  chosen_name=$(grep "^## Approach ${chosen_approach}:" "$RALPH_DIR/approaches.md" 2>/dev/null | sed 's/^## //')
+  if [ -n "$chosen_name" ]; then
+    printf "  ${GREEN}Selected: %s${RESET}\n" "$chosen_name"
+    echo "$chosen_name" >> "$RALPH_DIR/chosen-approach.md"
+  fi
+
+  # --- PHASE 3: PRD WRITER (with review loop) ---
+  prd_attempt=1
+  while true; do
+    echo ""
+    printf "${CYAN}▸ PRD WRITER${RESET} ${DIM}(attempt $prd_attempt)${RESET}\n"
+    step "Writing PRD..."
+
+    local_review_prompt=""
+    if [ "$prd_attempt" -gt 1 ] && [ -f "$RALPH_DIR/prd-review.md" ]; then
+      local_review_prompt="PREVIOUS REVIEW FEEDBACK — you MUST address these issues: @.ralph/prd-review.md"
+    fi
+
+    claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p \
+      "@.ralph/interview.md @.ralph/approaches.md @.ralph/chosen-approach.md \
+      You are the PRD WRITER. Read the interview notes, approaches, and the chosen approach. \
+      Generate a complete PRD and feature tracking file. \
+      \
+      $local_review_prompt \
+      \
+      Create PRD.md with this EXACT structure: \
+      # <Project Name> \
+      **Author:** user \
+      **Updated:** $(date +%Y.%m.%d) \
+      \
+      ## The Problem \
+      <what problem this solves and for whom> \
+      \
+      ## Target Use Cases \
+      - As a user, I want to <action> so I can <benefit> \
+      (list all key use cases from the interview) \
+      \
+      ## Proposed Solution \
+      <1-2 sentences describing the chosen approach> \
+      \
+      ## Goals \
+      - <specific, measurable goals> \
+      \
+      ## Out-of-Scope \
+      - <what is NOT being built> \
+      \
+      ## Requirements \
+      ### [P0] Initial setup \
+      - [ ] Set up project with chosen tech stack \
+      - [ ] Configure linting and formatting \
+      - [ ] Set up testing framework \
+      \
+      ### [P1] <feature name> \
+      - [ ] <specific actionable requirement> \
+      - [ ] <another requirement> \
+      \
+      ### [P2] <feature name> \
+      ... (as many PX sections as needed) \
+      \
+      ALSO create .claude/features.json as a JSON array with one entry per PX section: \
+      [{\"id\": \"P0\", \"title\": \"Initial setup\", \"passes\": false, \"completedAt\": null, \"summary\": null, \"filesModified\": [], \"details\": []}, \
+       {\"id\": \"P1\", \"title\": \"<feature>\", \"passes\": false, \"completedAt\": null, \"summary\": null, \"filesModified\": [], \"details\": []}] \
+      \
+      IMPORTANT: \
+      - Requirements must be specific and actionable (not vague) \
+      - Each PX section should have 2-5 checkboxes \
+      - Use [ ] for all checkboxes (nothing is done yet) \
+      - Do NOT implement any code" \
+      > "$RALPH_DIR/prd-writer.log" 2>&1 &
+    wait $!
+    step_done
+
+    # --- PHASE 4: PRD REVIEWER ---
+    step "Reviewing PRD..."
+    claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p \
+      "@PRD.md @.claude/features.json @.ralph/interview.md \
+      You are the PRD REVIEWER. Validate the PRD against the interview notes. \
+      \
+      Check: \
+      1. COMPLETENESS — Does the PRD cover everything discussed in the interview? Missing features? \
+      2. COHERENCE — Do requirements match the chosen approach? Any contradictions? \
+      3. ACTIONABILITY — Are requirements specific enough for an implementer? No vague items? \
+      4. STRUCTURE — Does it follow the correct format? Are PX IDs sequential? \
+      5. FEATURES.JSON — Does it match the PRD sections? All entries present? \
+      \
+      Write your review to .ralph/prd-review.md. \
+      Your file MUST start with exactly one of these lines: \
+      VERDICT: APPROVED \
+      or \
+      VERDICT: CHANGES_REQUESTED \
+      \
+      If CHANGES_REQUESTED, list specific issues that must be fixed. \
+      ONLY write to .ralph/prd-review.md." \
+      > "$RALPH_DIR/prd-reviewer.log" 2>&1 &
+    wait $!
+
+    prd_verdict=$(verdict "$RALPH_DIR/prd-review.md")
+    if grep -q "VERDICT: APPROVED" "$RALPH_DIR/prd-review.md" 2>/dev/null; then
+      step_done "$prd_verdict — ${GREEN}APPROVED${RESET}"
+      break
+    else
+      step_done "$prd_verdict — ${RED}CHANGES REQUESTED${RESET}"
+      print_rejection "PRD" "$RALPH_DIR/prd-review.md"
+      prd_attempt=$((prd_attempt + 1))
+    fi
+  done
+
+  # --- FINAL APPROVAL ---
+  echo ""
+  echo "─────────────────────────────────────────"
+  cat PRD.md 2>/dev/null
+  echo "─────────────────────────────────────────"
+  echo ""
+
+  printf "  ${BOLD}Approve this PRD?${RESET} [${GREEN}s${RESET}] approve  [${RED}n${RESET}] redo > "
+  read -r prd_choice
+
+  case "$prd_choice" in
+    s|S|y|Y)
+      printf "  ${GREEN}PRD approved and committed.${RESET}\n"
+      git add PRD.md .claude/features.json 2>/dev/null || true
+      git commit -m "docs: create PRD and features.json via ralph PRD creation" 2>/dev/null || true
+      ;;
+    *)
+      printf "  ${RED}PRD rejected. Please create PRD.md manually and re-run.${RESET}\n"
+      rm -f PRD.md .claude/features.json
+      exit 1
+      ;;
+  esac
+
+  echo ""
+fi
 
 # === MAIN LOOP ===
 for ((i=1; i<=LOOPS; i++)); do
@@ -540,6 +825,13 @@ for ((i=1; i<=LOOPS; i++)); do
   fi
 
   clean_ralph
+
+  # Debug: verify PRD.md exists at start of each iteration
+  if [ -f "PRD.md" ]; then
+    printf "  ${DIM}[debug] PRD.md exists (%s bytes, branch: %s)${RESET}\n" "$(wc -c < PRD.md)" "$(git branch --show-current)"
+  else
+    printf "  ${RED}[debug] PRD.md NOT FOUND (branch: %s, pwd: %s)${RESET}\n" "$(git branch --show-current)" "$(pwd)"
+  fi
 
   # === PLANNING PHASE ===
   plan_attempt=1
@@ -713,14 +1005,21 @@ for ((i=1; i<=LOOPS; i++)); do
 
   # === MERGE TO MAIN ===
   step "Merging to main..."
+  stashed=false
+  if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null || [ -n "$(git ls-files --others --exclude-standard 2>/dev/null)" ]; then
+    git stash push --include-untracked -m "ralph: pre-merge stash" 2>/dev/null && stashed=true
+  fi
   git checkout main
   if ! git merge --ff-only "$FEATURE_BRANCH"; then
     git merge --abort 2>/dev/null || true
+    git checkout "$FEATURE_BRANCH" 2>/dev/null || true
+    [ "$stashed" = true ] && git stash pop 2>/dev/null || true
     printf "\n  ${RED}Merge failed. Feature branch '%s' preserved.${RESET}\n" "$FEATURE_BRANCH"
     exit 1
   fi
   git branch -d "$FEATURE_BRANCH"
   FEATURE_BRANCH=""
+  [ "$stashed" = true ] && git stash pop 2>/dev/null || true
   step_done
 
   iter_elapsed=$(( $(date +%s) - iter_start ))
