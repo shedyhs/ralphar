@@ -1,52 +1,47 @@
 [
-	{
-		"id": "P0",
-		"title": "Initial setup",
-		"passes": true,
-		"completedAt": "2026-02-22",
-		"summary": "Bootstrapped Next.js 15 + TypeScript project with Biome for linting/formatting, Vitest for unit tests, and Playwright for e2e tests. All 5 verification commands pass.",
-		"filesModified": [
-			"package.json",
-			"tsconfig.json",
-			"next.config.ts",
-			"biome.json",
-			"vitest.config.ts",
-			"src/test-setup.ts",
-			"playwright.config.ts",
-			"src/app/globals.css",
-			"src/app/layout.tsx",
-			"src/app/page.tsx",
-			"src/__tests__/page.test.tsx",
-			"e2e/home.spec.ts",
-			"mise.toml"
-		],
-		"details": [
-			"Created Next.js 15 App Router project with React 19 and TypeScript",
-			"Configured Biome for linting and formatting (tab indentation, 100 char line width)",
-			"Set up Vitest with jsdom environment, @/* path alias, and @testing-library/jest-dom matchers",
-			"Configured Playwright targeting localhost:3000 with Chromium",
-			"Created minimal app skeleton: root layout, home page with h1, and global CSS reset",
-			"Added unit test for home page heading using @testing-library/react",
-			"Added e2e test for home page heading using Playwright",
-			"Installed Node 22 via mise; ran biome auto-format and playwright install chromium"
-		]
-	},
-	{
-		"id": "P1",
-		"title": "Core feature",
-		"passes": false,
-		"completedAt": null,
-		"summary": null,
-		"filesModified": [],
-		"details": []
-	},
-	{
-		"id": "P2",
-		"title": "Secondary feature",
-		"passes": false,
-		"completedAt": null,
-		"summary": null,
-		"filesModified": [],
-		"details": []
-	}
+  {
+    "id": "P0",
+    "title": "Project Foundation",
+    "passes": false,
+    "completedAt": null,
+    "summary": null,
+    "filesModified": [],
+    "details": []
+  },
+  {
+    "id": "P1",
+    "title": "Single Player vs AI",
+    "passes": false,
+    "completedAt": null,
+    "summary": null,
+    "filesModified": [],
+    "details": []
+  },
+  {
+    "id": "P2",
+    "title": "Score Tracking",
+    "passes": false,
+    "completedAt": null,
+    "summary": null,
+    "filesModified": [],
+    "details": []
+  },
+  {
+    "id": "P3",
+    "title": "Animations",
+    "passes": false,
+    "completedAt": null,
+    "summary": null,
+    "filesModified": [],
+    "details": []
+  },
+  {
+    "id": "P4",
+    "title": "Peer-to-Peer Multiplayer",
+    "passes": false,
+    "completedAt": null,
+    "summary": null,
+    "filesModified": [],
+    "details": []
+  }
 ]
