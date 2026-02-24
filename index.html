@@ -241,6 +241,11 @@
             }
 
             updateUI();
+
+            // Trigger AI move if applicable
+            if (!game.isGameOver && game.mode === 'ai' && game.currentPlayer === game.aiSymbol) {
+                setTimeout(makeAIMove, 300);
+            }
         }
 
         // Reset game state
@@ -318,7 +323,11 @@
 
         // Event listeners
         cells.forEach((cell, index) => {
-            cell.addEventListener('click', () => handleCellClick(index));
+            cell.addEventListener('click', () => {
+                // Block clicks during AI's turn
+                if (game.mode === 'ai' && game.currentPlayer === game.aiSymbol) return;
+                handleCellClick(index);
+            });
         });
 
         newGameBtn.addEventListener('click', resetGame);
