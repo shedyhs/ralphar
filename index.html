@@ -95,6 +95,35 @@
             padding: 15px;
             font-size: 1.1rem;
         }
+        #score-display {
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        .score-row {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            padding: 0.25rem 0;
+        }
+        .score-label {
+            color: #888;
+            margin-right: 0.5rem;
+        }
+        /* Single player: wins=green, losses=red (validation-a fix) */
+        #sp-wins {
+            color: #0f9b0f;  /* green for wins */
+        }
+        #sp-losses {
+            color: #e94560;  /* red for losses */
+        }
+        /* Multiplayer: match symbol colors (validation-a fix) */
+        #mp-x-wins {
+            color: #e94560;  /* X is red */
+        }
+        #mp-o-wins {
+            color: #0f9b0f;  /* O is green */
+        }
     </style>
 </head>
 <body>
