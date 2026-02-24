@@ -82,11 +82,29 @@
         .btn:hover {
             background: #c73e54;
         }
+        .hidden {
+            display: none !important;
+        }
+        #mode-selection {
+            text-align: center;
+        }
+        .mode-btn {
+            display: block;
+            width: 200px;
+            margin: 10px auto;
+            padding: 15px;
+            font-size: 1.1rem;
+        }
     </style>
 </head>
 <body>
     <h1>Tic-Tac-Toe</h1>
-    <div id="game-container">
+    <div id="mode-selection">
+        <button id="mode-ai-x" class="btn mode-btn">Play as X vs AI</button>
+        <button id="mode-ai-o" class="btn mode-btn">Play as O vs AI</button>
+        <button id="mode-local" class="btn mode-btn">vs Player (local)</button>
+    </div>
+    <div id="game-container" class="hidden">
         <div class="status" id="status">Player X's turn</div>
         <div class="board" id="board">
             <button class="cell" data-index="0"></button>
@@ -101,6 +119,7 @@
         </div>
         <div class="controls">
             <button class="btn" id="new-game">New Game</button>
+            <button id="change-mode" class="btn">Change Mode</button>
         </div>
     </div>
 
@@ -120,6 +139,37 @@
             winner: null
         };
 
+        // Score state
+        const STORAGE_KEY = 'ticTacToeScores';
+
+        const scores = {
+            singlePlayer: { wins: 0, losses: 0, draws: 0 },
+            multiplayer: { wins: 0, losses: 0, draws: 0 }
+        };
+
+        // Load scores from localStorage
+        function loadScores() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.assign(scores.singlePlayer, parsed.singlePlayer);
+                    Object.assign(scores.multiplayer, parsed.multiplayer);
+                }
+            } catch (e) {
+                console.warn('Failed to load scores:', e);
+            }
+        }
+
+        // Save scores to localStorage
+        function saveScores() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
+            } catch (e) {
+                console.warn('Failed to save scores:', e);
+            }
+        }
+
         // DOM elements
         const boardEl = document.getElementById('board');
         const statusEl = document.getElementById('status');
@@ -127,6 +177,86 @@
         const cells = document.querySelectorAll('.cell');
 
         console.log('Game state initialized', game);
+
+        // Check for winner
+        function checkWinner() {
+            for (const [a, b, c] of WINNING_LINES) {
+                if (game.board[a] &&
+                    game.board[a] === game.board[b] &&
+                    game.board[a] === game.board[c]) {
+                    return game.board[a];
+                }
+            }
+            return null;
+        }
+
+        // Check for draw
+        function checkDraw() {
+            return game.board.every(cell => cell !== null);
+        }
+
+        // Update the UI to reflect game state
+        function updateUI() {
+            cells.forEach((cell, index) => {
+                const value = game.board[index];
+                cell.textContent = value || '';
+                cell.className = 'cell' + (value ? ` ${value.toLowerCase()}` : '');
+            });
+
+            if (game.winner) {
+                statusEl.textContent = `Player ${game.winner} wins!`;
+            } else if (game.isGameOver) {
+                statusEl.textContent = "It's a draw!";
+            } else {
+                statusEl.textContent = `Player ${game.currentPlayer}'s turn`;
+            }
+        }
+
+        // Handle cell click
+        function handleCellClick(index) {
+            // Ignore if game over or cell occupied
+            if (game.isGameOver || game.board[index]) {
+                return;
+            }
+
+            // Make move
+            game.board[index] = game.currentPlayer;
+
+            // Check for winner
+            const winner = checkWinner();
+            if (winner) {
+                game.winner = winner;
+                game.isGameOver = true;
+            } else if (checkDraw()) {
+                game.isGameOver = true;
+            } else {
+                // Switch player
+                game.currentPlayer = game.currentPlayer === 'X' ? 'O' : 'X';
+            }
+
+            updateUI();
+        }
+
+        // Reset game state
+        function resetGame() {
+            game.board = Array(9).fill(null);
+            game.currentPlayer = 'X';
+            game.isGameOver = false;
+            game.winner = null;
+            updateUI();
+        }
+
+        // Event listeners
+        cells.forEach((cell, index) => {
+            cell.addEventListener('click', () => handleCellClick(index));
+        });
+
+        newGameBtn.addEventListener('click', resetGame);
+
+        // Initialize
+        loadScores();
+        console.log('Scores loaded:', scores);
+        updateUI();
     </script>
 </body>
 </html>
