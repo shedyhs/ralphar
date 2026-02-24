@@ -52,10 +52,10 @@ A single HTML file with embedded CSS and JavaScript using native WebRTC APIs for
 - [x] Player can choose to be X or O before starting
 
 ### [P2] Score Tracking
-- [ ] Track wins, losses, and draws separately for single-player and multiplayer modes
-- [ ] Display current score on screen with clear labels
-- [ ] Persist scores to localStorage and restore on page load
-- [ ] Add button to reset all scores
+- [x] Track wins, losses, and draws separately for single-player and multiplayer modes
+- [x] Display current score on screen with clear labels
+- [x] Persist scores to localStorage and restore on page load
+- [x] Add button to reset all scores
 
 ### [P3] Animations
 - [ ] Animate cell marks (X/O) appearing with CSS transitions when placed
