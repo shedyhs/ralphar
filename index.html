@@ -279,6 +279,43 @@
             modeSelectionEl.classList.remove('hidden');
         }
 
+        function findWinningMove(symbol) {
+            for (const [a, b, c] of WINNING_LINES) {
+                const line = [game.board[a], game.board[b], game.board[c]];
+                if (line.filter(x => x === symbol).length === 2 &&
+                    line.filter(x => x === null).length === 1) {
+                    return [a, b, c][line.indexOf(null)];
+                }
+            }
+            return null;
+        }
+
+        function findBestMove() {
+            const winMove = findWinningMove(game.aiSymbol);
+            if (winMove !== null) return winMove;
+
+            const blockMove = findWinningMove(game.playerSymbol);
+            if (blockMove !== null) return blockMove;
+
+            if (game.board[4] === null) return 4;
+
+            const corners = [0, 2, 6, 8];
+            for (const c of corners) {
+                if (game.board[c] === null) return c;
+            }
+
+            return game.board.findIndex(cell => cell === null);
+        }
+
+        function makeAIMove() {
+            if (game.isGameOver || game.currentPlayer !== game.aiSymbol) return;
+
+            const move = findBestMove();
+            if (move !== null && move !== -1) {
+                handleCellClick(move);
+            }
+        }
+
         // Event listeners
         cells.forEach((cell, index) => {
             cell.addEventListener('click', () => handleCellClick(index));
