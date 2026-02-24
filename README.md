@@ -1,6 +1,6 @@
 # Ralph
 
-An autonomous coding pipeline powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Ralph uses 10 specialized AI agents organized in two quality loops to plan, validate, implement, test, review, and commit code — all from a single bash command.
+An autonomous coding pipeline powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Ralph uses 11 specialized AI agents organized in two quality loops to plan, validate, implement, test, review, and commit code — all from a single bash command.
 
 ## How It Works
 
@@ -20,8 +20,13 @@ main ──┬── feature/p1-core-feature ── commits ── merge FF ─�
                     PLANNING PHASE
                     ──────────────
                      ┌──────────┐
-                     │ PLANNER  │  Picks task, explores codebase,
-                     │          │  writes plan
+                     │ EXPLORER │  Searches codebase with
+                     │          │  parallel subagents
+                     └────┬─────┘
+                          │
+                     ┌──────────┐
+                     │  PLAN    │  Writes detailed plan
+                     │  WRITER  │  from discovered context
                      └────┬─────┘
                           │
               ┌───────────┼───────────┐
@@ -32,7 +37,7 @@ main ──┬── feature/p1-core-feature ── commits ── merge FF ─�
         └────┬─────┘└────┬─────┘└────┬─────┘
               └───────────┼───────────┘
                           │
-                  All 3 approved? ──no──▶ back to PLANNER
+                  All 3 approved? ──no──▶ back to EXPLORER
                           │
                          yes
                           ▼
@@ -86,20 +91,21 @@ main ──┬── feature/p1-core-feature ── commits ── merge FF ─�
 
 ## The Agents
 
-| # | Agent | Role | Runs |
-|---|-------|------|------|
-| 1 | **Planner** | Picks the next task from the PRD, explores the codebase with parallel search agents, writes a detailed plan | Sequential |
-| 2 | **Validator A** | Reviews plan for **coherence** — are decisions consistent? Any contradictions? | Parallel |
-| 3 | **Validator B** | Reviews plan for **completeness** — missing requirements? Edge cases? Error handling? | Parallel |
-| 4 | **Validator C** | Reviews plan for **simplicity** — over-engineered? Can it be simpler? | Parallel |
-| 5 | **Implementer** | Writes code + unit tests following the approved plan, runs tests until green | Sequential |
-| 6 | **E2E Writer** | Writes end-to-end tests covering user journeys from the plan | Sequential |
-| 7 | **Tester** | Runs typecheck, build, tests, and lint — reports PASS/FAIL for each | Sequential |
-| 8 | **Frontend Reviewer** | Reviews frontend code using the frontend-reviewer skill | Parallel |
-| 9 | **Backend Reviewer** | Reviews backend code using the backend-reviewer skill | Parallel |
-| 10 | **Committer** | Updates PRD.md + features.json, creates git commit | Sequential |
+| # | Agent | Model | Role | Runs |
+|---|-------|-------|------|------|
+| 1 | **Explorer** | Opus | Searches the codebase with parallel subagents, discovers patterns and context | Sequential |
+| 2 | **Plan Writer** | Opus | Writes a detailed implementation plan from the discovered context | Sequential |
+| 3 | **Validator A** | Opus | Reviews plan for **coherence** — are decisions consistent? Any contradictions? | Parallel |
+| 4 | **Validator B** | Opus | Reviews plan for **completeness** — missing requirements? Edge cases? Error handling? | Parallel |
+| 5 | **Validator C** | Opus | Reviews plan for **simplicity** — over-engineered? Can it be simpler? | Parallel |
+| 6 | **Implementer** | Sonnet | Writes code + unit tests following the approved plan, runs tests until green | Sequential |
+| 7 | **E2E Writer** | Sonnet | Writes end-to-end tests covering user journeys from the plan | Sequential |
+| 8 | **Tester** | Sonnet | Runs typecheck, build, tests, and lint — reports PASS/FAIL for each | Sequential |
+| 9 | **Frontend Reviewer** | Opus | Reviews frontend code using the frontend-reviewer skill | Parallel |
+| 10 | **Backend Reviewer** | Opus | Reviews backend code using the backend-reviewer skill | Parallel |
+| 11 | **Committer** | Sonnet | Updates PRD.md + features.json, creates git commit | Sequential |
 
-Reviewers auto-approve if the change doesn't include code in their domain.
+Reviewers auto-approve if the change doesn't include code in their domain. The Registrar (Sonnet) runs between plan approval and implementation to register the task in `features.json`.
 
 ## Gitflow
 
@@ -117,9 +123,13 @@ If the merge fails (main diverged), the script exits and preserves the feature b
 
 ## Quality Loops
 
-**Planning loop:** The planner rewrites the plan until all 3 validators unanimously approve. Validator feedback is passed back to the planner on each retry.
+**Planning loop:** The explorer and plan writer run until all 3 validators unanimously approve. Validator feedback is passed back on each retry.
 
-**Implementation loop:** The implementer fixes code until both reviewers approve. Review feedback + test results are passed back on each retry.
+**Implementation loop:** The implementer fixes code until both reviewers approve. Review feedback + test results are passed back on each retry. If tests fail, review is skipped and the implementer retries immediately.
+
+## Checkpoint Chaining
+
+Long-running agents (explorer, plan writer, implementer) are wrapped with checkpoint chaining to handle context window limits. If an agent's context is about to be compacted, a `PreCompact` hook triggers the agent to save progress to `.ralph/checkpoint-<agent>.md`. A new session picks up from the checkpoint and continues. Each agent supports up to 3 chained sessions.
 
 ## Log Output
 
@@ -184,6 +194,9 @@ Full agent output is always available at `.ralph/planner.log`, `.ralph/implement
 # Specify task + iterations
 ./ralph.sh refactor the API layer --loop=2
 
+# Skip test writing and test running
+./ralph.sh --no-test
+
 # Help
 ./ralph.sh --help
 ```
@@ -195,14 +208,21 @@ your-project/
 ├── ralph.sh              # The pipeline script
 ├── PRD.md                # Your product requirements
 ├── .claude/
-│   └── features.json     # Task tracking (passes: true/false)
+│   ├── features.json     # Task tracking (passes: true/false)
+│   ├── settings.json     # Hook configuration (PreCompact)
+│   ├── hooks/
+│   │   └── pre-compact.sh  # Triggers checkpoint save before context compaction
+│   └── skills/
+│       ├── backend-reviewer/   # Backend code review skill + references
+│       └── frontend-reviewer/  # Frontend code review skill + references
 ├── .ralph/               # Working directory (gitignored, cleaned each iteration)
-│   ├── context.md        # Codebase context found by planner
+│   ├── context.md        # Codebase context found by explorer
 │   ├── plan.md           # Implementation plan
 │   ├── validation-*.md   # Validator verdicts
 │   ├── implementation.md # What was implemented
 │   ├── test-report.md    # Test results
 │   ├── review-*.md       # Reviewer verdicts
+│   ├── checkpoint-*.md   # Agent checkpoints (for context recovery)
 │   └── *.log             # Full agent output
 └── ...your code
 ```
