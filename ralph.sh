@@ -105,7 +105,7 @@ verdict() {
 
 test_status() {
   local key=$1
-  if grep -q "^${key}: PASS" .ralph/test-report.md 2>/dev/null; then
+  if grep -q "${key}: PASS" .ralph/test-report.md 2>/dev/null; then
     printf "${GREEN}✓${RESET}"
   else
     printf "${RED}✗${RESET}"
@@ -653,7 +653,7 @@ for ((i=1; i<=LOOPS; i++)); do
       # If any test failed, skip review and go back to implementer
       tests_passed=true
       for check in TYPECHECK BUILD TESTS LINT; do
-        if ! grep -q "^${check}: PASS" .ralph/test-report.md 2>/dev/null; then
+        if ! grep -q "${check}: PASS" .ralph/test-report.md 2>/dev/null; then
           tests_passed=false
           break
         fi
