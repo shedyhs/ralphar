@@ -165,6 +165,7 @@
         <div class="controls">
             <button class="btn" id="new-game">New Game</button>
             <button id="change-mode" class="btn">Change Mode</button>
+            <button id="reset-scores" class="btn">Reset Scores</button>
         </div>
     </div>
 
@@ -224,6 +225,67 @@
             } catch (e) {
                 console.warn('Failed to save scores:', e);
             }
+        }
+
+        // Update score display in UI
+        function updateScoreDisplay() {
+            // Update single player scores
+            document.getElementById('sp-wins').textContent = scores.singlePlayer.wins;
+            document.getElementById('sp-losses').textContent = scores.singlePlayer.losses;
+            document.getElementById('sp-draws').textContent = scores.singlePlayer.draws;
+
+            // Update multiplayer scores
+            document.getElementById('mp-x-wins').textContent = scores.multiplayer.xWins;
+            document.getElementById('mp-o-wins').textContent = scores.multiplayer.oWins;
+            document.getElementById('mp-draws').textContent = scores.multiplayer.draws;
+
+            // Show correct score row based on mode
+            const spScores = document.getElementById('sp-scores');
+            const mpScores = document.getElementById('mp-scores');
+
+            if (game.mode === 'ai') {
+                spScores.classList.remove('hidden');
+                mpScores.classList.add('hidden');
+            } else if (game.mode === 'local') {
+                spScores.classList.add('hidden');
+                mpScores.classList.remove('hidden');
+            }
+        }
+
+        // Record score when game ends
+        function recordScore() {
+            if (!game.isGameOver) return;
+
+            if (game.mode === 'ai') {
+                // Single player: track from player's perspective
+                if (game.winner === game.playerSymbol) {
+                    scores.singlePlayer.wins++;
+                } else if (game.winner === game.aiSymbol) {
+                    scores.singlePlayer.losses++;
+                } else {
+                    scores.singlePlayer.draws++;
+                }
+            } else if (game.mode === 'local') {
+                // Multiplayer: track by symbol
+                if (game.winner === 'X') {
+                    scores.multiplayer.xWins++;
+                } else if (game.winner === 'O') {
+                    scores.multiplayer.oWins++;
+                } else {
+                    scores.multiplayer.draws++;
+                }
+            }
+
+            saveScores();
+            updateScoreDisplay();
+        }
+
+        // Reset all scores to zero
+        function resetScores() {
+            scores.singlePlayer = { wins: 0, losses: 0, draws: 0 };
+            scores.multiplayer = { xWins: 0, oWins: 0, draws: 0 };
+            saveScores();
+            updateScoreDisplay();
         }
 
         // DOM elements
@@ -286,8 +348,10 @@
             if (winner) {
                 game.winner = winner;
                 game.isGameOver = true;
+                recordScore();
             } else if (checkDraw()) {
                 game.isGameOver = true;
+                recordScore();
             } else {
                 // Switch player
                 game.currentPlayer = game.currentPlayer === 'X' ? 'O' : 'X';
@@ -322,6 +386,7 @@
             modeSelectionEl.classList.add('hidden');
             gameContainerEl.classList.remove('hidden');
             resetGame();
+            updateScoreDisplay();
         }
 
         function startAIGame(playerSymbol) {
@@ -331,6 +396,7 @@
             modeSelectionEl.classList.add('hidden');
             gameContainerEl.classList.remove('hidden');
             resetGame();
+            updateScoreDisplay();
         }
 
         function showModeSelection() {
@@ -394,9 +460,11 @@
         document.getElementById('mode-ai-o').addEventListener('click', () => startAIGame('O'));
         document.getElementById('mode-local').addEventListener('click', startLocalGame);
         changeModeBtn.addEventListener('click', showModeSelection);
+        document.getElementById('reset-scores').addEventListener('click', resetScores);
 
         // Initialize
         loadScores();
+        updateScoreDisplay();
         console.log('Scores loaded:', scores);
         updateUI();
     </script>
