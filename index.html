@@ -252,12 +252,44 @@
             updateUI();
         }
 
+        function startLocalGame() {
+            game.mode = 'local';
+            game.playerSymbol = null;
+            game.aiSymbol = null;
+            modeSelectionEl.classList.add('hidden');
+            gameContainerEl.classList.remove('hidden');
+            resetGame();
+        }
+
+        function startAIGame(playerSymbol) {
+            game.mode = 'ai';
+            game.playerSymbol = playerSymbol;
+            game.aiSymbol = playerSymbol === 'X' ? 'O' : 'X';
+            modeSelectionEl.classList.add('hidden');
+            gameContainerEl.classList.remove('hidden');
+            resetGame();
+        }
+
+        function showModeSelection() {
+            resetGame();
+            game.mode = null;
+            game.playerSymbol = null;
+            game.aiSymbol = null;
+            gameContainerEl.classList.add('hidden');
+            modeSelectionEl.classList.remove('hidden');
+        }
+
         // Event listeners
         cells.forEach((cell, index) => {
             cell.addEventListener('click', () => handleCellClick(index));
         });
 
         newGameBtn.addEventListener('click', resetGame);
+
+        document.getElementById('mode-ai-x').addEventListener('click', () => startAIGame('X'));
+        document.getElementById('mode-ai-o').addEventListener('click', () => startAIGame('O'));
+        document.getElementById('mode-local').addEventListener('click', startLocalGame);
+        changeModeBtn.addEventListener('click', showModeSelection);
 
         // Initialize
         loadScores();
