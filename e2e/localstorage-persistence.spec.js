@@ -28,8 +28,8 @@ test.describe('P0: localStorage Persistence', () => {
       });
 
       expect(scores.multiplayer).toEqual({
-        wins: 0,
-        losses: 0,
+        xWins: 0,
+        oWins: 0,
         draws: 0
       });
     });
@@ -103,7 +103,7 @@ test.describe('P0: localStorage Persistence', () => {
       await page.evaluate(() => {
         const testData = {
           singlePlayer: { wins: 12, losses: 5, draws: 3 },
-          multiplayer: { wins: 8, losses: 6, draws: 2 }
+          multiplayer: { xWins: 8, oWins: 6, draws: 2 }
         };
         localStorage.setItem('ticTacToeScores', JSON.stringify(testData));
       });
@@ -117,8 +117,8 @@ test.describe('P0: localStorage Persistence', () => {
       expect(scores.singlePlayer.wins).toBe(12);
       expect(scores.singlePlayer.losses).toBe(5);
       expect(scores.singlePlayer.draws).toBe(3);
-      expect(scores.multiplayer.wins).toBe(8);
-      expect(scores.multiplayer.losses).toBe(6);
+      expect(scores.multiplayer.xWins).toBe(8);
+      expect(scores.multiplayer.oWins).toBe(6);
       expect(scores.multiplayer.draws).toBe(2);
     });
 
@@ -146,8 +146,8 @@ test.describe('P0: localStorage Persistence', () => {
       expect(scores.singlePlayer.wins).toBe(0);
       expect(scores.singlePlayer.losses).toBe(0);
       expect(scores.singlePlayer.draws).toBe(0);
-      expect(scores.multiplayer.wins).toBe(0);
-      expect(scores.multiplayer.losses).toBe(0);
+      expect(scores.multiplayer.xWins).toBe(0);
+      expect(scores.multiplayer.oWins).toBe(0);
       expect(scores.multiplayer.draws).toBe(0);
     });
   });
@@ -229,7 +229,7 @@ test.describe('P0: localStorage Persistence', () => {
 
       const scores = await page.evaluate(() => scores);
       expect(scores.singlePlayer.wins).toBe(0);
-      expect(scores.multiplayer.wins).toBe(0);
+      expect(scores.multiplayer.xWins).toBe(0);
     });
 
     test('should handle partial/malformed data in localStorage', async ({ page }) => {
