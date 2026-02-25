@@ -78,3 +78,4 @@ A single HTML file with embedded CSS and JavaScript using native WebRTC APIs for
 - [x] Update win detection to work correctly with dynamic board state
 - [x] Enable mechanic across all game modes (vs AI, Local, and Online)
 - [x] Synchronize mark disappearance across WebRTC peers in online mode
+- [ ] Add visual indicator showing which mark will disappear next using reduced opacity

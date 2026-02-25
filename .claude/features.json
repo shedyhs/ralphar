@@ -142,9 +142,9 @@
   {
     "id": "P5",
     "title": "Disappearing Marks Mechanic",
-    "passes": true,
+    "passes": false,
     "completedAt": "2026-02-25",
-    "summary": "Complete disappearing marks mechanic with 150ms fade-out animation, cross-mode support (Local, AI, WebRTC), and deterministic synchronization. Oldest mark automatically disappears after 5 total moves, preventing draws and enabling indefinite gameplay (223/223 tests passing)",
+    "summary": "Disappearing marks mechanic with 150ms fade-out animation, cross-mode support (Local, AI, WebRTC), and deterministic synchronization. Oldest mark automatically disappears after 5 total moves. INCOMPLETE: Visual indicator for next-to-disappear mark needs implementation.",
     "filesModified": [
       "index.html",
       "e2e/disappearing-marks.spec.js"
@@ -161,7 +161,8 @@
       "AI moves automatically tracked via handleCellClick() - no separate tracking needed",
       "WebRTC peers maintain identical moveHistory for deterministic removal synchronization",
       "Created comprehensive E2E test suite with 11 tests covering all modes and edge cases",
-      "All 223 active tests passing (9 WebRTC tests skipped due to test environment limitations)"
+      "All 223 active tests passing (9 WebRTC tests skipped due to test environment limitations)",
+      "TODO: Add visual indicator (reduced opacity) for the oldest mark that will disappear next"
     ]
   }
 ]
