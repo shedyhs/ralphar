@@ -112,10 +112,23 @@
   {
     "id": "P4",
     "title": "Peer-to-Peer Multiplayer",
-    "passes": false,
-    "completedAt": null,
-    "summary": null,
-    "filesModified": [],
-    "details": []
+    "passes": true,
+    "completedAt": "2026-02-24",
+    "summary": "WebRTC peer-to-peer multiplayer with manual signaling, move/reset sync, disconnection handling (205/205 tests passing - 100%)",
+    "filesModified": ["index.html", "e2e/webrtc.spec.js"],
+    "details": [
+      "Added Play Online mode button with WebRTC browser detection",
+      "Connection panel for offer/answer code exchange via base64-encoded codes",
+      "WebRTC connection with STUN server (stun.l.google.com:19302)",
+      "Data channel for move and reset message sync between peers",
+      "Turn enforcement for remote play (block clicks when not your turn)",
+      "Modified score functions to handle webrtc mode (else instead of === local)",
+      "Graceful disconnection handling with cleanup and status messages",
+      "6 E2E tests with two-context pattern for peer-to-peer simulation",
+      "All async operations wrapped in try-catch with error handlers",
+      "Host is always X, Guest is always O with automatic assignment",
+      "Internal _resetGameState() function to prevent reset message loops",
+      "Copy to clipboard functionality with fallback to text selection"
+    ]
   }
 ]

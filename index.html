@@ -191,6 +191,46 @@
         #mp-o-wins {
             color: #0f9b0f;  /* O is green */
         }
+        #connection-panel {
+            text-align: center;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        #connection-status {
+            margin-bottom: 1rem;
+            color: #e0e0e0;
+        }
+
+        #connection-code {
+            width: 100%;
+            font-family: monospace;
+            font-size: 0.8rem;
+            padding: 0.5rem;
+            margin: 0.5rem 0;
+            background: #16213e;
+            color: #e0e0e0;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            resize: none;
+        }
+
+        .connection-controls {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin: 0.5rem 0;
+        }
+
+        .connection-controls button {
+            flex: 1;
+            max-width: 150px;
+        }
+
+        #back-to-modes {
+            margin-top: 1rem;
+            background: #333;
+        }
     </style>
 </head>
 <body>
@@ -199,6 +239,20 @@
         <button id="mode-ai-x" class="btn mode-btn">Play as X vs AI</button>
         <button id="mode-ai-o" class="btn mode-btn">Play as O vs AI</button>
         <button id="mode-local" class="btn mode-btn">vs Player (local)</button>
+        <button id="mode-webrtc" class="btn mode-btn">Play Online</button>
+    </div>
+    <div id="connection-panel" class="hidden">
+        <p id="connection-status">Create a game or paste a code to join</p>
+        <div class="connection-controls">
+            <button id="create-game">Create Game</button>
+            <button id="copy-code" class="hidden">Copy Code</button>
+        </div>
+        <textarea id="connection-code" placeholder="Paste opponent's code here..." rows="3"></textarea>
+        <div class="connection-controls">
+            <button id="join-game">Join Game</button>
+            <button id="submit-answer" class="hidden">Submit Answer</button>
+        </div>
+        <button id="back-to-modes">Back</button>
     </div>
     <div id="game-container" class="hidden">
         <div class="status" id="status">Player X's turn</div>
@@ -237,6 +291,16 @@
     </div>
 
     <script>
+        // WebRTC Browser Detection
+        function checkWebRTCSupport() {
+            try {
+                const RTC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
+                return RTC !== undefined;
+            } catch (e) {
+                return false;
+            }
+        }
+
         // Constants
         const WINNING_LINES = [
             [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
@@ -262,6 +326,11 @@
             singlePlayer: { wins: 0, losses: 0, draws: 0 },
             multiplayer: { xWins: 0, oWins: 0, draws: 0 }
         };
+
+        // WebRTC state
+        let peerConnection = null;
+        let dataChannel = null;
+        let isHost = false;
 
         // Load scores from localStorage
         function loadScores() {
@@ -313,7 +382,7 @@
             if (game.mode === 'ai') {
                 spScores.classList.remove('hidden');
                 mpScores.classList.add('hidden');
-            } else if (game.mode === 'local') {
+            } else {  // Handles 'local' and 'webrtc' modes
                 spScores.classList.add('hidden');
                 mpScores.classList.remove('hidden');
             }
@@ -355,7 +424,7 @@
                     scores.singlePlayer.draws++;
                     elementIdToAnimate = 'sp-draws';
                 }
-            } else if (game.mode === 'local') {
+            } else {  // Handles 'local' and 'webrtc' modes
                 if (game.winner === 'X') {
                     scores.multiplayer.xWins++;
                     elementIdToAnimate = 'mp-x-wins';
@@ -381,6 +450,266 @@
             scores.multiplayer = { xWins: 0, oWins: 0, draws: 0 };
             saveScores();
             updateScoreDisplay();
+        }
+
+        // WebRTC connection code encoding
+        function encodeConnectionCode(sdp) {
+            return btoa(JSON.stringify(sdp));
+        }
+
+        // WebRTC connection code decoding with validation
+        function parseConnectionCode(base64Code) {
+            try {
+                const json = atob(base64Code.trim());
+                const parsed = JSON.parse(json);
+                if (!parsed.type || !parsed.sdp) {
+                    throw new Error('Missing type or sdp');
+                }
+                if (parsed.type !== 'offer' && parsed.type !== 'answer') {
+                    throw new Error('Invalid type');
+                }
+                return parsed;
+            } catch (e) {
+                console.error('Invalid connection code:', e);
+                return null;
+            }
+        }
+
+        // WebRTC data channel setup with error handling
+        function setupDataChannel(channel) {
+            channel.onopen = () => {
+                const statusEl = document.getElementById('connection-status');
+                statusEl.textContent = `Connected! You are Player ${game.playerSymbol}`;
+                document.getElementById('connection-panel').classList.add('hidden');
+                document.getElementById('game-container').classList.remove('hidden');
+                game.mode = 'webrtc';
+                _resetGameState();
+                updateScoreDisplay();
+            };
+
+            channel.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'move') {
+                        handleRemoteMove(data.index);
+                    } else if (data.type === 'reset') {
+                        handleRemoteReset();
+                    }
+                } catch (e) {
+                    console.error('Invalid message received:', e);
+                }
+            };
+
+            channel.onclose = () => {
+                handlePeerDisconnect();
+            };
+
+            channel.onerror = (error) => {
+                console.error('Data channel error:', error);
+                handlePeerDisconnect();
+            };
+        }
+
+        // Create game as host (with CRITICAL FIX: show submitBtn)
+        async function createGame() {
+            const statusEl = document.getElementById('connection-status');
+            const codeArea = document.getElementById('connection-code');
+            const copyBtn = document.getElementById('copy-code');
+            const submitBtn = document.getElementById('submit-answer');  // ADD THIS
+            const createBtn = document.getElementById('create-game');
+            const joinBtn = document.getElementById('join-game');
+
+            statusEl.textContent = 'Creating game...';
+            createBtn.classList.add('hidden');
+            joinBtn.classList.add('hidden');
+
+            isHost = true;
+            game.playerSymbol = 'X';
+
+            try {
+                const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+                peerConnection = new RTCPeerConnection(config);
+
+                peerConnection.onconnectionstatechange = () => {
+                    if (peerConnection.connectionState === 'disconnected' ||
+                        peerConnection.connectionState === 'failed') {
+                        handlePeerDisconnect();
+                    }
+                };
+
+                dataChannel = peerConnection.createDataChannel('game');
+                setupDataChannel(dataChannel);
+
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate === null) {
+                        const offer = peerConnection.localDescription;
+                        codeArea.value = encodeConnectionCode(offer);
+                        copyBtn.classList.remove('hidden');
+                        submitBtn.classList.remove('hidden');  // CRITICAL FIX: Show submit button for host
+                        statusEl.textContent = 'Share code with opponent, then paste their answer and click Submit';
+                    }
+                };
+
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+            } catch (e) {
+                console.error('Failed to create game:', e);
+                statusEl.textContent = 'Failed to create game - please try again';
+                cleanupWebRTC();
+                createBtn.classList.remove('hidden');
+                joinBtn.classList.remove('hidden');
+            }
+        }
+
+        // Join game as guest with validation
+        async function joinGame() {
+            const statusEl = document.getElementById('connection-status');
+            const codeArea = document.getElementById('connection-code');
+            const copyBtn = document.getElementById('copy-code');
+            const createBtn = document.getElementById('create-game');
+            const joinBtn = document.getElementById('join-game');
+            const submitBtn = document.getElementById('submit-answer');
+
+            const offer = parseConnectionCode(codeArea.value);
+            if (!offer) {
+                statusEl.textContent = 'Invalid code - please try again';
+                return;
+            }
+
+            if (offer.type !== 'offer') {
+                statusEl.textContent = 'Invalid code - expected an offer';
+                return;
+            }
+
+            statusEl.textContent = 'Connecting to game...';
+            createBtn.classList.add('hidden');
+            joinBtn.classList.add('hidden');
+
+            isHost = false;
+            game.playerSymbol = 'O';
+
+            try {
+                const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+                peerConnection = new RTCPeerConnection(config);
+
+                peerConnection.onconnectionstatechange = () => {
+                    if (peerConnection.connectionState === 'disconnected' ||
+                        peerConnection.connectionState === 'failed') {
+                        handlePeerDisconnect();
+                    }
+                };
+
+                peerConnection.ondatachannel = (event) => {
+                    dataChannel = event.channel;
+                    setupDataChannel(dataChannel);
+                };
+
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate === null) {
+                        const answer = peerConnection.localDescription;
+                        codeArea.value = encodeConnectionCode(answer);
+                        copyBtn.classList.remove('hidden');
+                        submitBtn.classList.remove('hidden');
+                        statusEl.textContent = 'Share the answer code with the host';
+                    }
+                };
+
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+            } catch (e) {
+                console.error('Failed to join game:', e);
+                statusEl.textContent = 'Failed to join game - please try again';
+                cleanupWebRTC();
+                createBtn.classList.remove('hidden');
+                joinBtn.classList.remove('hidden');
+            }
+        }
+
+        // Internal reset (no message sending to prevent loop)
+        function _resetGameState() {
+            game.board = Array(9).fill(null);
+            game.currentPlayer = 'X';
+            game.isGameOver = false;
+            game.winner = null;
+            cells.forEach(cell => cell.classList.remove('winning'));
+            updateUI();
+        }
+
+        // Handle remote player's move (CRITICAL FIX: pass getWinningLine())
+        function handleRemoteMove(index) {
+            if (game.isGameOver) return;
+            if (game.board[index] !== null) return;
+            if (game.currentPlayer === game.playerSymbol) return;
+
+            game.board[index] = game.currentPlayer;
+            const winner = checkWinner();
+            if (winner) {
+                game.isGameOver = true;
+                game.winner = winner;
+                highlightWinningLine(getWinningLine());  // CRITICAL FIX: Must pass getWinningLine() or highlight won't work
+                recordScore();
+            } else if (game.board.every(cell => cell !== null)) {
+                game.isGameOver = true;
+                recordScore();
+            } else {
+                game.currentPlayer = game.currentPlayer === 'X' ? 'O' : 'X';
+            }
+            updateUI();
+        }
+
+        // Handle remote reset (no message sending)
+        function handleRemoteReset() {
+            _resetGameState();
+        }
+
+        // Submit answer code to complete connection
+        async function submitAnswer() {
+            const statusEl = document.getElementById('connection-status');
+            const codeArea = document.getElementById('connection-code');
+
+            const answer = parseConnectionCode(codeArea.value);
+            if (!answer) {
+                statusEl.textContent = 'Invalid code - please try again';
+                return;
+            }
+
+            if (answer.type !== 'answer') {
+                statusEl.textContent = 'Invalid code - expected an answer';
+                return;
+            }
+
+            statusEl.textContent = 'Connecting...';
+
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            } catch (e) {
+                console.error('Failed to complete connection:', e);
+                statusEl.textContent = 'Connection failed - please try again';
+            }
+        }
+
+        // Cleanup WebRTC resources (idempotent)
+        function cleanupWebRTC() {
+            if (dataChannel) {
+                dataChannel.close();
+                dataChannel = null;
+            }
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            isHost = false;
+        }
+
+        // Handle peer disconnection
+        function handlePeerDisconnect() {
+            cleanupWebRTC();
+            if (game.mode === 'webrtc') {
+                const statusEl = document.getElementById('status');
+                statusEl.textContent = 'Opponent disconnected';
+                game.isGameOver = true;
+            }
         }
 
         // DOM elements
@@ -443,12 +772,33 @@
                 cell.className = 'cell' + (value ? ` ${value.toLowerCase()}` : '') + (hasNewMark ? ' animate-in' : '') + (isWinning ? ' winning' : '');
             });
 
-            if (game.winner) {
-                statusEl.textContent = `Player ${game.winner} wins!`;
-            } else if (game.isGameOver) {
-                statusEl.textContent = "It's a draw!";
+            // WebRTC mode status messages
+            if (game.mode === 'webrtc') {
+                if (game.isGameOver) {
+                    // Check draw FIRST (validation-b fix)
+                    if (game.winner === null) {
+                        statusEl.textContent = "It's a draw!";
+                    } else if (game.winner === game.playerSymbol) {
+                        statusEl.textContent = 'You win!';
+                    } else {
+                        statusEl.textContent = 'You lose!';
+                    }
+                } else {
+                    if (game.currentPlayer === game.playerSymbol) {
+                        statusEl.textContent = `Your turn (Player ${game.playerSymbol})`;
+                    } else {
+                        statusEl.textContent = `Waiting for opponent (Player ${game.currentPlayer})...`;
+                    }
+                }
             } else {
-                statusEl.textContent = `Player ${game.currentPlayer}'s turn`;
+                // Local and AI modes
+                if (game.winner) {
+                    statusEl.textContent = `Player ${game.winner} wins!`;
+                } else if (game.isGameOver) {
+                    statusEl.textContent = "It's a draw!";
+                } else {
+                    statusEl.textContent = `Player ${game.currentPlayer}'s turn`;
+                }
             }
         }
 
@@ -459,8 +809,16 @@
                 return;
             }
 
+            // Block clicks when not your turn in WebRTC mode
+            if (game.mode === 'webrtc' && game.currentPlayer !== game.playerSymbol) return;
+
             // Make move
             game.board[index] = game.currentPlayer;
+
+            // Sync move to remote peer
+            if (game.mode === 'webrtc' && dataChannel?.readyState === 'open') {
+                dataChannel.send(JSON.stringify({ type: 'move', index: index }));
+            }
 
             // Check for winner
             const winner = checkWinner();
@@ -487,12 +845,12 @@
 
         // Reset game state
         function resetGame() {
-            game.board = Array(9).fill(null);
-            game.currentPlayer = 'X';
-            game.isGameOver = false;
-            game.winner = null;
-            cells.forEach(cell => cell.classList.remove('winning'));
-            updateUI();
+            _resetGameState();
+
+            // Send reset message to remote peer
+            if (game.mode === 'webrtc' && dataChannel?.readyState === 'open') {
+                dataChannel.send(JSON.stringify({ type: 'reset' }));
+            }
 
             // Trigger AI first move if AI is X
             if (game.mode === 'ai' && game.aiSymbol === 'X') {
@@ -521,6 +879,10 @@
         }
 
         function showModeSelection() {
+            // Cleanup WebRTC connection when changing mode
+            if (game.mode === 'webrtc') {
+                cleanupWebRTC();
+            }
             resetGame();
             game.mode = null;
             game.playerSymbol = null;
@@ -583,11 +945,55 @@
         changeModeBtn.addEventListener('click', showModeSelection);
         document.getElementById('reset-scores').addEventListener('click', resetScores);
 
+        // WebRTC event listeners (with feature detection guard)
+        const webrtcButton = document.getElementById('mode-webrtc');
+        if (webrtcButton && checkWebRTCSupport()) {
+            webrtcButton.addEventListener('click', () => {
+                document.getElementById('mode-selection').classList.add('hidden');
+                document.getElementById('connection-panel').classList.remove('hidden');
+            });
+        }
+
+        document.getElementById('create-game').addEventListener('click', createGame);
+        document.getElementById('join-game').addEventListener('click', joinGame);
+        document.getElementById('submit-answer').addEventListener('click', submitAnswer);
+
+        document.getElementById('copy-code').addEventListener('click', async () => {
+            const codeArea = document.getElementById('connection-code');
+            const copyBtn = document.getElementById('copy-code');
+            try {
+                await navigator.clipboard.writeText(codeArea.value);
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy Code'; }, 2000);
+            } catch (e) {
+                console.error('Failed to copy:', e);
+                codeArea.select();
+            }
+        });
+
+        document.getElementById('back-to-modes').addEventListener('click', () => {
+            cleanupWebRTC();
+            document.getElementById('connection-panel').classList.add('hidden');
+            document.getElementById('mode-selection').classList.remove('hidden');
+            document.getElementById('create-game').classList.remove('hidden');
+            document.getElementById('join-game').classList.remove('hidden');
+            document.getElementById('copy-code').classList.add('hidden');
+            document.getElementById('submit-answer').classList.add('hidden');
+            document.getElementById('connection-code').value = '';
+            document.getElementById('connection-status').textContent = 'Create a game or paste a code to join';
+        });
+
         // Initialize
         loadScores();
         updateScoreDisplay();
         console.log('Scores loaded:', scores);
         updateUI();
+
+        // Hide WebRTC button if unsupported
+        if (!checkWebRTCSupport()) {
+            const btn = document.getElementById('mode-webrtc');
+            if (btn) btn.classList.add('hidden');
+        }
     </script>
 </body>
 </html>

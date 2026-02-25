@@ -64,8 +64,8 @@ A single HTML file with embedded CSS and JavaScript using native WebRTC APIs for
 - [x] Animate score counter updates
 
 ### [P4] Peer-to-Peer Multiplayer
-- [ ] Implement WebRTC data channel for direct peer-to-peer connection
-- [ ] Generate connection offer/answer codes for manual signaling exchange
-- [ ] Provide UI for users to copy/paste connection data to establish link
-- [ ] Synchronize all game state changes between connected peers
-- [ ] Handle peer disconnections gracefully with appropriate user feedback
+- [x] Implement WebRTC data channel for direct peer-to-peer connection
+- [x] Generate connection offer/answer codes for manual signaling exchange
+- [x] Provide UI for users to copy/paste connection data to establish link
+- [x] Synchronize all game state changes between connected peers
+- [x] Handle peer disconnections gracefully with appropriate user feedback
