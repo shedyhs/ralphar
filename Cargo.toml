@@ -16,6 +16,7 @@ serde_json = "1"
 tokio-test = "0.4"
 assert_cmd = "2.0"
 predicates = "3.1"
+rexpect = "0.5"
 
 [lints.rust]
 unsafe_code = "forbid"

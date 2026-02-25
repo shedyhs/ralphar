@@ -413,7 +413,7 @@ run_implementer() {
   local test_instructions=""
   if [ "$SKIP_TESTS" = false ]; then
     test_instructions="3. Write unit tests for the code you implemented. \
-    4. Run the unit tests with 'npm run test' and fix any failures before finishing. \
+    4. Run the unit tests and fix any failures before finishing. \
     5. Write a summary of what you implemented to .ralph/implementation.md with: \
        - Files created or modified \
        - Unit tests created or modified \
@@ -477,10 +477,10 @@ run_tester() {
   You are the TESTER. Your job: \
   1. Read what was implemented in .ralph/implementation.md. \
   2. Run ALL four feedback loops: \
-     a. npm run typecheck \
-     b. npm run build \
-     c. npm run test \
-     d. npm run lint \
+     a. typecheck \
+     b. build \
+     c. test \
+     d. lint \
   3. Write the results to .ralph/test-report.md with this format: \
      \
      TYPECHECK: PASS or FAIL \

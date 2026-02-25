@@ -4,12 +4,10 @@
   "description": "An autonomous coding pipeline powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Ralph uses 11 specialized AI agents organized in two quality loops to plan, validate, implement, test, review, and commit code — all from a single bash command.",
   "main": "index.js",
   "scripts": {
-    "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:ui": "playwright test --ui",
-    "typecheck": "echo 'No TypeScript in this project - vanilla JS only' && exit 0",
-    "build": "echo 'No build step needed - single HTML file' && exit 0",
-    "lint": "echo 'No linter configured - vanilla JS project' && exit 0"
+    "test": "cargo test",
+    "typecheck": "cargo check",
+    "build": "cargo build",
+    "lint": "cargo clippy -- -D warnings && cargo fmt -- --check"
   },
   "repository": {
     "type": "git",
