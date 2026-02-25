@@ -1,13 +1,14 @@
 [advisories]
-db-path = "~/.cargo/advisory-db"
-db-urls = ["https://github.com/rustsec/advisory-db"]
-vulnerability = "deny"
-unmaintained = "warn"
-yanked = "warn"
-notice = "warn"
+version = 2
+ignore = [
+    # RUSTSEC-2024-0436: paste crate is unmaintained but comes from ratatui.
+    # This is a transitive dependency, not a security vulnerability.
+    # Will be resolved when ratatui updates or when alternatives are available.
+    "RUSTSEC-2024-0436",
+]
 
 [licenses]
-unlicensed = "deny"
+version = 2
 allow = [
     "MIT",
     "Apache-2.0",
@@ -18,8 +19,6 @@ allow = [
     "Unicode-3.0",
     "Unicode-DFS-2016",
 ]
-copyleft = "warn"
-default = "deny"
 
 [bans]
 multiple-versions = "warn"
