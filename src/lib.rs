@@ -1,5 +1,6 @@
 //! Ralph TUI - Interactive pipeline interface
 
+pub mod app;
 pub mod terminal;
 
 pub fn version() -> &'static str {
