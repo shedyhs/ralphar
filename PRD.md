@@ -1,7 +1,7 @@
 # Tic-Tac-Toe (Jogo da Velha)
 
 **Author:** user
-**Updated:** 2026.02.24
+**Updated:** 2026.02.25
 
 ## The Problem
 
@@ -14,6 +14,7 @@ People want to play tic-tac-toe either alone against an AI opponent or with frie
 - As a user, I want to see my win/loss record so I can track my performance over time
 - As a user, I want smooth animations so the game feels polished and engaging
 - As a user, I want to share a link to connect with another player so we can start a game easily
+- As a user, I want marks to automatically disappear after 5 moves so the game has a dynamic, challenging twist
 
 ## Proposed Solution
 
@@ -69,3 +70,11 @@ A single HTML file with embedded CSS and JavaScript using native WebRTC APIs for
 - [x] Provide UI for users to copy/paste connection data to establish link
 - [x] Synchronize all game state changes between connected peers
 - [x] Handle peer disconnections gracefully with appropriate user feedback
+
+### [P5] Disappearing Marks Mechanic
+- [ ] Track move history to identify the globally oldest mark after 5 total moves
+- [ ] Automatically remove the oldest mark (regardless of player) when the 6th move is placed
+- [ ] Implement gradual fade-out animation for marks about to disappear
+- [ ] Update win detection to work correctly with dynamic board state
+- [ ] Enable mechanic across all game modes (vs AI, Local, and Online)
+- [ ] Synchronize mark disappearance across WebRTC peers in online mode

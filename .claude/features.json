@@ -138,5 +138,13 @@
       "Internal _resetGameState() function to prevent reset message loops",
       "Copy to clipboard functionality with fallback to text selection"
     ]
+  },
+  {
+    "id": "P5",
+    "title": "Disappearing Marks Mechanic",
+    "passes": false,
+    "summary": "Dynamic gameplay mechanic where the oldest mark disappears after 5 total moves are placed, limiting the board to 5 marks at any time",
+    "filesModified": [],
+    "details": []
   }
 ]
