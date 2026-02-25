@@ -129,6 +129,21 @@
                 box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
             }
         }
+        /* Cell clear animation for board reset */
+        @keyframes cellClear {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
+
+        .clearing {
+            animation: cellClear 0.15s ease-out forwards;
+        }
         .status {
             font-size: 1.25rem;
             min-height: 2rem;
@@ -151,6 +166,35 @@
         }
         .hidden {
             display: none !important;
+        }
+        /* Panel transitions - override .hidden for panels only */
+        .panel {
+            position: relative;
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.2s ease-out, visibility 0.2s;
+        }
+
+        .panel.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            /* Intentionally NOT display:none - allows CSS transition */
+        }
+
+        /* Prevent animation flash on initial page load */
+        body:not(.transitions-enabled) .panel {
+            transition: none !important;
+        }
+
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .panel {
+                transition: none !important;
+            }
+            .clearing {
+                animation: none;
+            }
         }
         #mode-selection {
             text-align: center;
@@ -235,13 +279,13 @@
 </head>
 <body>
     <h1>Tic-Tac-Toe</h1>
-    <div id="mode-selection">
+    <div id="mode-selection" class="panel">
         <button id="mode-ai-x" class="btn mode-btn">Play as X vs AI</button>
         <button id="mode-ai-o" class="btn mode-btn">Play as O vs AI</button>
         <button id="mode-local" class="btn mode-btn">vs Player (local)</button>
         <button id="mode-webrtc" class="btn mode-btn">Play Online</button>
     </div>
-    <div id="connection-panel" class="hidden">
+    <div id="connection-panel" class="panel hidden">
         <p id="connection-status">Create a game or paste a code to join</p>
         <div class="connection-controls">
             <button id="create-game">Create Game</button>
@@ -254,7 +298,7 @@
         </div>
         <button id="back-to-modes">Back</button>
     </div>
-    <div id="game-container" class="hidden">
+    <div id="game-container" class="panel hidden">
         <div class="status" id="status">Player X's turn</div>
 
         <div id="score-display">
@@ -331,6 +375,9 @@
         let peerConnection = null;
         let dataChannel = null;
         let isHost = false;
+
+        // Reset state
+        let isResetting = false;
 
         // Load scores from localStorage
         function loadScores() {
@@ -483,7 +530,7 @@
                 document.getElementById('connection-panel').classList.add('hidden');
                 document.getElementById('game-container').classList.remove('hidden');
                 game.mode = 'webrtc';
-                _resetGameState();
+                _resetGameState(false);  // Immediate reset for initialization
                 updateScoreDisplay();
             };
 
@@ -627,13 +674,45 @@
         }
 
         // Internal reset (no message sending to prevent loop)
-        function _resetGameState() {
-            game.board = Array(9).fill(null);
-            game.currentPlayer = 'X';
-            game.isGameOver = false;
-            game.winner = null;
-            cells.forEach(cell => cell.classList.remove('winning'));
-            updateUI();
+        function _resetGameState(animate = true) {
+            if (isResetting) return;  // Guard against rapid resets
+            isResetting = true;
+
+            if (animate) {
+                // Add clearing animation to all marked cells
+                cells.forEach(cell => {
+                    if (cell.textContent !== '') {
+                        cell.classList.remove('animate-in');  // Remove mark animation
+                        cell.classList.add('clearing');
+                    }
+                });
+
+                // Reset game state immediately (so game is playable)
+                game.board = Array(9).fill(null);
+                game.currentPlayer = 'X';
+                game.isGameOver = false;
+                game.winner = null;
+                isResetting = false;  // Release guard immediately after state reset
+
+                // Delay UI update to show animation
+                setTimeout(() => {
+                    cells.forEach(cell => {
+                        cell.classList.remove('winning', 'clearing');
+                    });
+                    updateUI();
+                }, 150);
+            } else {
+                // Immediate reset for game initialization
+                game.board = Array(9).fill(null);
+                game.currentPlayer = 'X';
+                game.isGameOver = false;
+                game.winner = null;
+                cells.forEach(cell => {
+                    cell.classList.remove('winning', 'clearing');
+                });
+                updateUI();
+                isResetting = false;
+            }
         }
 
         // Handle remote player's move (CRITICAL FIX: pass getWinningLine())
@@ -769,7 +848,8 @@
                 const wasEmpty = !cell.classList.contains('x') && !cell.classList.contains('o');
                 const hasNewMark = value && wasEmpty;
                 const isWinning = cell.classList.contains('winning');
-                cell.className = 'cell' + (value ? ` ${value.toLowerCase()}` : '') + (hasNewMark ? ' animate-in' : '') + (isWinning ? ' winning' : '');
+                const isClearing = cell.classList.contains('clearing');
+                cell.className = 'cell' + (value ? ` ${value.toLowerCase()}` : '') + (hasNewMark ? ' animate-in' : '') + (isWinning ? ' winning' : '') + (isClearing ? ' clearing' : '');
             });
 
             // WebRTC mode status messages
@@ -845,16 +925,16 @@
 
         // Reset game state
         function resetGame() {
-            _resetGameState();
-
-            // Send reset message to remote peer
-            if (game.mode === 'webrtc' && dataChannel?.readyState === 'open') {
+            // WebRTC sync happens immediately (before animation)
+            if (game.mode === 'webrtc' && dataChannel && dataChannel.readyState === 'open') {
                 dataChannel.send(JSON.stringify({ type: 'reset' }));
             }
 
-            // Trigger AI first move if AI is X
+            _resetGameState();
+
+            // AI first move: 150ms animation + 250ms delay = 400ms total
             if (game.mode === 'ai' && game.aiSymbol === 'X') {
-                setTimeout(makeAIMove, 300);
+                setTimeout(makeAIMove, 400);
             }
         }
 
@@ -864,7 +944,7 @@
             game.aiSymbol = null;
             modeSelectionEl.classList.add('hidden');
             gameContainerEl.classList.remove('hidden');
-            resetGame();
+            _resetGameState(false);  // Immediate reset for initialization
             updateScoreDisplay();
         }
 
@@ -874,8 +954,13 @@
             game.aiSymbol = playerSymbol === 'X' ? 'O' : 'X';
             modeSelectionEl.classList.add('hidden');
             gameContainerEl.classList.remove('hidden');
-            resetGame();
+            _resetGameState(false);  // Immediate reset for initialization
             updateScoreDisplay();
+
+            // Trigger AI first move if AI is X
+            if (game.aiSymbol === 'X') {
+                setTimeout(makeAIMove, 300);
+            }
         }
 
         function showModeSelection() {
@@ -883,7 +968,7 @@
             if (game.mode === 'webrtc') {
                 cleanupWebRTC();
             }
-            resetGame();
+            _resetGameState(false);  // Immediate reset when changing modes
             game.mode = null;
             game.playerSymbol = null;
             game.aiSymbol = null;
@@ -994,6 +1079,9 @@
             const btn = document.getElementById('mode-webrtc');
             if (btn) btn.classList.add('hidden');
         }
+
+        // Enable transitions after first paint (prevents flash on page load)
+        requestAnimationFrame(() => document.body.classList.add('transitions-enabled'));
     </script>
 </body>
 </html>

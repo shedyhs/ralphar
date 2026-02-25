@@ -86,8 +86,8 @@
     "id": "P3",
     "title": "Animations",
     "passes": true,
-    "completedAt": "2026-02-24",
-    "summary": "Complete animation implementation with cell mark appearance, winning line highlights, and score counter animations. All 199 tests passing including 13 new animation-specific E2E tests. Includes accessibility support for reduced motion preferences.",
+    "completedAt": "2026-02-25",
+    "summary": "Complete animation implementation with cell mark appearance, winning line highlights, score counter animations, and smooth board reset transitions. All 221 tests passing including 20 animation-specific E2E tests. Includes accessibility support for reduced motion preferences.",
     "filesModified": [
       "index.html",
       "e2e/animations.spec.js"
@@ -106,7 +106,15 @@
       "Added reduced motion support via @media (prefers-reduced-motion: reduce) for all animations",
       "Expanded e2e/animations.spec.js from 1 to 13 comprehensive tests",
       "Fixed bug where updateUI() was overwriting winning class by preserving it during className updates",
-      "All 199 E2E tests passing (186 existing + 13 new animation tests)"
+      "Added @keyframes cellClear animation (opacity 1→0, scale 1→0.8, 150ms) for smooth board reset",
+      "Modified _resetGameState() with animate parameter for two-phase reset strategy (animated vs immediate)",
+      "Implemented immediate state reset with delayed UI update to prevent unplayable period during animation",
+      "Early guard release in _resetGameState() to allow rapid resets without blocking legitimate user actions",
+      "Updated resetGame() with 400ms AI delay (150ms animation + 250ms thinking) for proper timing",
+      "Updated game initialization functions (startLocalGame, startAIGame, showModeSelection) to use immediate reset",
+      "Added 7 E2E tests for board reset transitions covering animation, rapid resets, AI integration, and WebRTC sync",
+      "Modified existing test to verify 150ms animation timing instead of instant clearing",
+      "All 221 E2E tests passing (100%) including 20 animation-specific tests"
     ]
   },
   {
