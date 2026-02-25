@@ -746,6 +746,43 @@ if [ "$UPDATE_PRD" = true ] && [ -f "PRD.md" ]; then
     wait $!
     step_done
 
+    # --- PHASE 2.5: SYNC features.json WITH PRD ---
+    # The LLM sometimes updates PRD.md but forgets features.json.
+    # This bash step ensures every ### [PX] section in PRD.md has a matching entry.
+    if [ -f "PRD.md" ] && [ -f ".claude/features.json" ]; then
+      _sync_output=$(python3 << 'SYNC_EOF'
+import json, re
+with open("PRD.md") as f:
+    prd = f.read()
+with open(".claude/features.json") as f:
+    features = json.load(f)
+existing_ids = {e["id"] for e in features}
+prd_sections = re.findall(r'^### \[([^\]]+)\] (.+)$', prd, re.MULTILINE)
+added = []
+for pid, ptitle in prd_sections:
+    if pid not in existing_ids:
+        features.append({
+            "id": pid, "title": ptitle, "passes": False,
+            "completedAt": None, "summary": None,
+            "filesModified": [], "details": []
+        })
+        added.append(f"{pid} — {ptitle}")
+if added:
+    with open(".claude/features.json", "w") as f:
+        json.dump(features, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    for a in added:
+        print(a)
+SYNC_EOF
+)
+      if [ -n "$_sync_output" ]; then
+        while IFS= read -r _sync_line; do
+          printf "    ${YELLOW}⚡ Synced: ${_sync_line}${RESET}\n"
+        done <<< "$_sync_output"
+        printf "    ${GREEN}✓ features.json synced with PRD.md${RESET}\n"
+      fi
+    fi
+
     # --- PHASE 3: PRD REVIEWER ---
     step "Reviewing PRD..."
     claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p \

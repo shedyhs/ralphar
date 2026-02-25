@@ -864,9 +864,9 @@
             return game.board.every(cell => cell !== null);
         }
 
-        // Remove oldest mark when history exceeds 5 moves
+        // Remove oldest mark when history exceeds 7 moves
         function removeOldestMark() {
-            if (moveHistory.length <= 5) return;
+            if (moveHistory.length <= 7) return;
 
             const oldestIndex = moveHistory.shift();
             if (game.board[oldestIndex] === null) return;  // Guard against double-removal
@@ -940,7 +940,7 @@
             // Make move
             game.board[index] = game.currentPlayer;
 
-            // Track move and remove oldest if over 5 marks
+            // Track move and remove oldest if over 7 marks
             moveHistory.push(index);
             removeOldestMark();
 
