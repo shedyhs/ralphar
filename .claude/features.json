@@ -19,7 +19,7 @@
   },
   {
     "id": "P2",
-    "title": "Skills management",
+    "title": "Pipeline visualization",
     "passes": false,
     "completedAt": null,
     "summary": null,
@@ -28,7 +28,7 @@
   },
   {
     "id": "P3",
-    "title": "Flow management",
+    "title": "Log streaming",
     "passes": false,
     "completedAt": null,
     "summary": null,
@@ -37,7 +37,7 @@
   },
   {
     "id": "P4",
-    "title": "Configuration and persistence",
+    "title": "Interactive controls",
     "passes": false,
     "completedAt": null,
     "summary": null,
@@ -46,7 +46,7 @@
   },
   {
     "id": "P5",
-    "title": "Terminal instance isolation",
+    "title": "Team collaboration features",
     "passes": false,
     "completedAt": null,
     "summary": null,
