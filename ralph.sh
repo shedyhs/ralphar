@@ -136,6 +136,15 @@ print_rejection() {
   fi
 }
 
+needs_re_exploration() {
+  for v in a b c; do
+    if grep -q "NEEDS_RE_EXPLORATION: YES" ".ralph/validation-${v}.md" 2>/dev/null; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 clean_ralph() {
   rm -rf "$RALPH_DIR"
   mkdir -p "$RALPH_DIR"
