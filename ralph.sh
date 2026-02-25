@@ -575,6 +575,39 @@ run_reviewer_backend() {
   wait $!
 }
 
+run_reviewer_calisthenics() {
+  local test_ref=""
+  local test_step=""
+  if [ "$SKIP_TESTS" = false ]; then
+    test_ref="@.ralph/test-report.md"
+    test_step="3. Read the test results (.ralph/test-report.md). \\"
+  fi
+
+  echo "reviewer-calisthenics" > "$RALPH_DIR/current-agent"
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p "@.ralph/plan.md @.ralph/implementation.md $test_ref \
+  @.claude/skills/calisthenics-reviewer/SKILL.md \
+  You are the CALISTHENICS REVIEWER. Your job: \
+  1. Read the approved plan (.ralph/plan.md). \
+  2. Read what was implemented (.ralph/implementation.md). \
+  $test_step
+  4. Run 'git diff' to see the actual code changes. \
+  5. Review ALL changed code (both frontend and backend) against the 9 Object Calisthenics rules. \
+  6. Follow the review process in the calisthenics-reviewer skill. \
+     Use the skill's references (object-calisthenics) to inform your review. \
+  7. Write your review to .ralph/review-calisthenics.md following the skill's output format. \
+  \
+  Your file MUST start with exactly one of these lines: \
+  VERDICT: APPROVED \
+  or \
+  VERDICT: CHANGES_REQUESTED \
+  \
+  If CHANGES_REQUESTED, list specific violations with file paths and line numbers. \
+  If tests failed, ALWAYS request changes. \
+  Do NOT modify any code. ONLY write to .ralph/review-calisthenics.md." \
+  > "$RALPH_DIR/reviewer-calisthenics.log" 2>&1 &
+  wait $!
+}
+
 run_register_task() {
   echo "register-task" > "$RALPH_DIR/current-agent"
   claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p "@.claude/features.json @.ralph/plan.md \
@@ -1197,7 +1230,7 @@ for ((i=1; i<=LOOPS; i++)); do
       printf "\n"
       # Clean only implementation artifacts
       rm -f "$RALPH_DIR/implementation.md" "$RALPH_DIR/review.md" "$RALPH_DIR/review-frontend.md" \
-        "$RALPH_DIR/review-backend.md" "$RALPH_DIR/test-report.md" "$RALPH_DIR/checkpoint-implementer.md"
+        "$RALPH_DIR/review-backend.md" "$RALPH_DIR/review-calisthenics.md" "$RALPH_DIR/test-report.md" "$RALPH_DIR/checkpoint-implementer.md"
     else
       clean_ralph
     fi
@@ -1403,32 +1436,44 @@ for ((i=1; i<=LOOPS; i++)); do
     pid_fe=$!
     run_reviewer_backend &
     pid_be=$!
-    wait $pid_fe $pid_be || true
+    run_reviewer_calisthenics &
+    pid_ca=$!
+    wait $pid_fe $pid_be $pid_ca || true
 
     fe=$(verdict ".ralph/review-frontend.md")
     be=$(verdict ".ralph/review-backend.md")
+    ca=$(verdict ".ralph/review-calisthenics.md")
 
     fe_approved=false
     be_approved=false
+    ca_approved=false
     if grep -q "VERDICT: APPROVED" .ralph/review-frontend.md 2>/dev/null; then
       fe_approved=true
     fi
     if grep -q "VERDICT: APPROVED" .ralph/review-backend.md 2>/dev/null; then
       be_approved=true
     fi
+    if grep -q "VERDICT: APPROVED" .ralph/review-calisthenics.md 2>/dev/null; then
+      ca_approved=true
+    fi
 
-    if [ "$fe_approved" = true ] && [ "$be_approved" = true ]; then
-      step_done "FE:$fe  BE:$be — ${GREEN}APPROVED${RESET}"
+    if [ "$fe_approved" = true ] && [ "$be_approved" = true ] && [ "$ca_approved" = true ]; then
+      step_done "FE:$fe  BE:$be  CA:$ca — ${GREEN}APPROVED${RESET}"
       break
     else
-      step_done "FE:$fe  BE:$be — ${RED}REJECTED${RESET}"
+      step_done "FE:$fe  BE:$be  CA:$ca — ${RED}REJECTED${RESET}"
       print_rejection "FE · Frontend" ".ralph/review-frontend.md"
       print_rejection "BE · Backend" ".ralph/review-backend.md"
+      print_rejection "CA · Calisthenics" ".ralph/review-calisthenics.md"
       cat .ralph/review-frontend.md > .ralph/review.md 2>/dev/null || true
       echo "" >> .ralph/review.md
       echo "---" >> .ralph/review.md
       echo "" >> .ralph/review.md
       cat .ralph/review-backend.md >> .ralph/review.md 2>/dev/null || true
+      echo "" >> .ralph/review.md
+      echo "---" >> .ralph/review.md
+      echo "" >> .ralph/review.md
+      cat .ralph/review-calisthenics.md >> .ralph/review.md 2>/dev/null || true
       rm -f "$RALPH_DIR/checkpoint-implementer.md"
       impl_attempt=$((impl_attempt + 1))
     fi

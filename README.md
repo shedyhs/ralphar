@@ -1,6 +1,6 @@
 # Ralph
 
-An autonomous coding pipeline powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Ralph uses 11 specialized AI agents organized in two quality loops to plan, validate, implement, test, review, and commit code — all from a single bash command.
+An autonomous coding pipeline powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Ralph uses 12 specialized AI agents organized in two quality loops to plan, validate, implement, test, review, and commit code — all from a single bash command.
 
 ## How It Works
 
@@ -65,15 +65,15 @@ main ──┬── feature/p1-core-feature ── commits ── merge FF ─�
                      │          │  tests, lint
                      └────┬─────┘
                           │
-              ┌───────────┴───────────┐
-              ▼                       ▼
-        ┌──────────┐           ┌──────────┐
-        │REVIEWER  │           │REVIEWER  │  2 reviewers
-        │Frontend  │           │Backend   │  run in parallel
-        └────┬─────┘           └────┬─────┘
-              └───────────┬───────────┘
+              ┌───────────┼───────────┐
+              ▼           ▼           ▼
+        ┌──────────┐┌──────────┐┌──────────┐
+        │REVIEWER  ││REVIEWER  ││REVIEWER  │  3 reviewers
+        │Frontend  ││Backend   ││Calisth.  │  run in parallel
+        └────┬─────┘└────┬─────┘└────┬─────┘
+              └───────────┼───────────┘
                           │
-                 Both approved? ──no──▶ back to IMPLEMENTER
+                 All 3 approved? ──no──▶ back to IMPLEMENTER
                           │
                          yes
                           ▼
@@ -103,9 +103,10 @@ main ──┬── feature/p1-core-feature ── commits ── merge FF ─�
 | 8 | **Tester** | Sonnet | Runs typecheck, build, tests, and lint — reports PASS/FAIL for each | Sequential |
 | 9 | **Frontend Reviewer** | Opus | Reviews frontend code using the frontend-reviewer skill | Parallel |
 | 10 | **Backend Reviewer** | Opus | Reviews backend code using the backend-reviewer skill | Parallel |
-| 11 | **Committer** | Sonnet | Updates PRD.md + features.json, creates git commit | Sequential |
+| 11 | **Calisthenics Reviewer** | Opus | Reviews all code against the 9 Object Calisthenics rules | Parallel |
+| 12 | **Committer** | Sonnet | Updates PRD.md + features.json, creates git commit | Sequential |
 
-Reviewers auto-approve if the change doesn't include code in their domain. The Registrar (Sonnet) runs between plan approval and implementation to register the task in `features.json`.
+Reviewers auto-approve if the change doesn't include code in their domain (frontend/backend reviewers). The Calisthenics reviewer evaluates all code. The Registrar (Sonnet) runs between plan approval and implementation to register the task in `features.json`.
 
 ## Gitflow
 
@@ -214,7 +215,8 @@ your-project/
 │   │   └── pre-compact.sh  # Triggers checkpoint save before context compaction
 │   └── skills/
 │       ├── backend-reviewer/   # Backend code review skill + references
-│       └── frontend-reviewer/  # Frontend code review skill + references
+│       ├── frontend-reviewer/  # Frontend code review skill + references
+│       └── calisthenics-reviewer/  # Object Calisthenics review skill + references
 ├── .ralph/               # Working directory (gitignored, cleaned each iteration)
 │   ├── context.md        # Codebase context found by explorer
 │   ├── plan.md           # Implementation plan

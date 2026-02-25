@@ -1,1 +1,56 @@
-[]
+[
+  {
+    "id": "P0",
+    "title": "Initial setup",
+    "passes": false,
+    "completedAt": null,
+    "summary": null,
+    "filesModified": [],
+    "details": []
+  },
+  {
+    "id": "P1",
+    "title": "Core TUI framework",
+    "passes": false,
+    "completedAt": null,
+    "summary": null,
+    "filesModified": [],
+    "details": []
+  },
+  {
+    "id": "P2",
+    "title": "Skills management",
+    "passes": false,
+    "completedAt": null,
+    "summary": null,
+    "filesModified": [],
+    "details": []
+  },
+  {
+    "id": "P3",
+    "title": "Flow management",
+    "passes": false,
+    "completedAt": null,
+    "summary": null,
+    "filesModified": [],
+    "details": []
+  },
+  {
+    "id": "P4",
+    "title": "Configuration and persistence",
+    "passes": false,
+    "completedAt": null,
+    "summary": null,
+    "filesModified": [],
+    "details": []
+  },
+  {
+    "id": "P5",
+    "title": "Terminal instance isolation",
+    "passes": false,
+    "completedAt": null,
+    "summary": null,
+    "filesModified": [],
+    "details": []
+  }
+]
