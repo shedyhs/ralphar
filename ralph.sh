@@ -157,9 +157,10 @@ slugify() {
 check_agent_output() {
   local agent_name=$1
   case "$agent_name" in
-    explorer)     [ -f "$RALPH_DIR/context.md" ] ;;
-    plan-writer)  [ -f "$RALPH_DIR/plan.md" ] ;;
-    implementer)  [ -f "$RALPH_DIR/implementation.md" ] ;;
+    explorer)      [ -f "$RALPH_DIR/context.md" ] ;;
+    plan-writer)   [ -f "$RALPH_DIR/plan.md" ] ;;
+    plan-patcher)  [ -f "$RALPH_DIR/plan.md" ] ;;
+    implementer)   [ -f "$RALPH_DIR/implementation.md" ] ;;
     *)            return 0 ;;
   esac
 }
@@ -937,8 +938,67 @@ for ((i=1; i<=LOOPS; i++)); do
       print_rejection "A" ".ralph/validation-a.md"
       print_rejection "B" ".ralph/validation-b.md"
       print_rejection "C" ".ralph/validation-c.md"
-      rm -f "$RALPH_DIR/checkpoint-explorer.md" "$RALPH_DIR/checkpoint-plan-writer.md"
       plan_attempt=$((plan_attempt + 1))
+
+      if [ "$approved" -eq 0 ]; then
+        # All 3 rejected: regenerate from scratch
+        printf "    ${DIM}All validators rejected — regenerating from scratch${RESET}\n"
+        rm -f "$RALPH_DIR/checkpoint-explorer.md" "$RALPH_DIR/checkpoint-plan-writer.md"
+        continue
+      fi
+
+      # 1-2 rejected: patch the existing plan
+      if needs_re_exploration; then
+        printf "    ${DIM}Re-exploring (validator requested)${RESET}\n"
+        step "Re-exploring..."
+        run_with_checkpoint run_explorer 3 "explorer" "$plan_attempt"
+        step_done
+      fi
+
+      printf "    ${DIM}Patching existing plan${RESET}\n"
+      step "Patching plan..."
+      run_with_checkpoint run_plan_patcher 3 "plan-patcher"
+      step_done
+
+      # Extract task info from plan.md (first heading)
+      task_name=$(grep -m1 "^#" .ralph/plan.md 2>/dev/null | sed 's/^#* *//' || echo "")
+      if [ -n "$task_name" ]; then
+        printf "  ${YELLOW}Task: %s${RESET}\n" "$task_name"
+      fi
+
+      # Re-validate the patched plan
+      step "Validating..."
+      run_validator "a" "COHERENCE: Is the plan coherent? Do decisions make sense given the context? Are there contradictions?" &
+      pid_a=$!
+      run_validator "b" "COMPLETENESS: Does the plan cover everything the task requires? Missing edge cases? Missing error handling?" &
+      pid_b=$!
+      run_validator "c" "SIMPLICITY: Is the plan unnecessarily complex? Over-engineered? Can it be simpler?" &
+      pid_c=$!
+      wait $pid_a $pid_b $pid_c || true
+
+      va=$(verdict ".ralph/validation-a.md")
+      vb=$(verdict ".ralph/validation-b.md")
+      vc=$(verdict ".ralph/validation-c.md")
+
+      approved=0
+      for v in a b c; do
+        if grep -q "VERDICT: APPROVED" ".ralph/validation-${v}.md" 2>/dev/null; then
+          approved=$((approved + 1))
+        fi
+      done
+
+      if [ "$approved" -eq 3 ]; then
+        step_done "A:$va  B:$vb  C:$vc — ${GREEN}APPROVED${RESET}"
+        break
+      else
+        step_done "A:$va  B:$vb  C:$vc — ${RED}REJECTED${RESET}"
+        print_rejection "A" ".ralph/validation-a.md"
+        print_rejection "B" ".ralph/validation-b.md"
+        print_rejection "C" ".ralph/validation-c.md"
+        # Next iteration will go through the top of the loop (full regeneration)
+        rm -f "$RALPH_DIR/checkpoint-explorer.md" "$RALPH_DIR/checkpoint-plan-writer.md" "$RALPH_DIR/checkpoint-plan-patcher.md"
+        plan_attempt=$((plan_attempt + 1))
+      fi
     fi
   done
 
