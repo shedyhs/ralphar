@@ -142,9 +142,9 @@
   {
     "id": "P5",
     "title": "Disappearing Marks Mechanic",
-    "passes": false,
+    "passes": true,
     "completedAt": "2026-02-25",
-    "summary": "Disappearing marks mechanic with 150ms fade-out animation, cross-mode support (Local, AI, WebRTC), and deterministic synchronization. Oldest mark automatically disappears after 5 total moves. INCOMPLETE: Visual indicator for next-to-disappear mark needs implementation.",
+    "summary": "Complete disappearing marks mechanic with 150ms fade-out animation, visual indicator (0.5 opacity) for next-to-disappear mark, cross-mode support (Local, AI, WebRTC), and deterministic synchronization. Oldest mark automatically disappears after 7 total moves. All 230 tests passing (10 skipped).",
     "filesModified": [
       "index.html",
       "e2e/disappearing-marks.spec.js"
@@ -154,15 +154,20 @@
       "Created markFadeOut CSS animation with 150ms duration and reduced-motion support (lines 149-160)",
       "Implemented removeOldestMark() function with double-removal guard and animation cleanup (lines 866-881)",
       "Modified updateUI() to skip fading cells, preventing animation interruption (line 887)",
-      "Modified checkDraw() to return false when moveHistory >= 5, preventing impossible draws (lines 861-864)",
+      "Modified checkDraw() to return false when moveHistory >= 7, preventing impossible draws (updated from 5 to 7)",
       "Integrated move tracking in handleCellClick() for Local and AI modes (lines 942-943)",
       "Integrated move tracking in handleRemoteMove() for WebRTC mode (lines 744-745)",
       "Updated _resetGameState() to clear moveHistory and fading classes in both animated and immediate branches (lines 710, 716, 726, 728)",
       "AI moves automatically tracked via handleCellClick() - no separate tracking needed",
       "WebRTC peers maintain identical moveHistory for deterministic removal synchronization",
-      "Created comprehensive E2E test suite with 11 tests covering all modes and edge cases",
-      "All 223 active tests passing (9 WebRTC tests skipped due to test environment limitations)",
-      "TODO: Add visual indicator (reduced opacity) for the oldest mark that will disappear next"
+      "Added .cell.next-to-fade CSS class with opacity: 0.5 for visual indicator (~line 160)",
+      "Modified updateUI() to compute oldestIndex once per call and apply next-to-fade class at moveHistory.length >= 7",
+      "Indicator appears when exactly 7 marks are on board, showing which mark will disappear on next move",
+      "Indicator automatically shifts to new oldest mark after removal completes",
+      "Indicator clears naturally on reset via moveHistory.length check (no explicit cleanup needed)",
+      "Created 7 new E2E tests for visual indicator covering all modes and edge cases",
+      "Fixed 5 existing disappearing marks tests to match updated 7-move threshold",
+      "All 240 tests total (230 passing, 10 skipped - includes WebRTC automated test limitations)"
     ]
   }
 ]

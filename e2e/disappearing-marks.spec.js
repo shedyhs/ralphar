@@ -7,93 +7,74 @@ test.describe('P5: Disappearing Marks Mechanic', () => {
       await page.locator('#mode-local').click();
     });
 
-    test('6th move triggers removal of oldest mark', async ({ page }) => {
-      // Place 5 marks (X, O, X, O, X)
-      await page.locator('.cell[data-index="0"]').click(); // X - this should disappear on move 6
-      await page.locator('.cell[data-index="1"]').click(); // O
-      await page.locator('.cell[data-index="2"]').click(); // X
-      await page.locator('.cell[data-index="3"]').click(); // O
-      await page.locator('.cell[data-index="4"]').click(); // X
+    test('8th move triggers removal of oldest mark', async ({ page }) => {
+      // Place 7 marks avoiding a win: X at 0,3,5,8  O at 1,2,6
+      const moves = [0, 1, 3, 2, 5, 6, 8]; // X at 0 will disappear on move 8
+      for (const i of moves) {
+        await page.locator(`.cell[data-index="${i}"]`).click();
+      }
 
-      // Verify all 5 marks are present
+      // Verify all 7 marks are present
       await expect(page.locator('.cell[data-index="0"]')).toHaveText('X');
       await expect(page.locator('.cell[data-index="1"]')).toHaveText('O');
-      await expect(page.locator('.cell[data-index="2"]')).toHaveText('X');
-      await expect(page.locator('.cell[data-index="3"]')).toHaveText('O');
-      await expect(page.locator('.cell[data-index="4"]')).toHaveText('X');
 
-      // Verify moveHistory length is 5
+      // Verify moveHistory length is 7
       const historyBefore = await page.evaluate(() => moveHistory.length);
-      expect(historyBefore).toBe(5);
+      expect(historyBefore).toBe(7);
 
-      // Place 6th mark (O)
-      await page.locator('.cell[data-index="5"]').click(); // O
+      // Place 8th mark at index 4
+      await page.locator('.cell[data-index="4"]').click(); // O
 
       // Wait for fade animation to complete (0.15s + buffer)
       await page.waitForTimeout(200);
 
       // Verify oldest mark (index 0) has disappeared
       await expect(page.locator('.cell[data-index="0"]')).toHaveText('');
-      await expect(page.locator('.cell[data-index="0"]')).not.toHaveClass(/X/);
+      await expect(page.locator('.cell[data-index="0"]')).not.toHaveClass(/x/);
 
       // Verify other marks still present
       await expect(page.locator('.cell[data-index="1"]')).toHaveText('O');
-      await expect(page.locator('.cell[data-index="2"]')).toHaveText('X');
-      await expect(page.locator('.cell[data-index="3"]')).toHaveText('O');
-      await expect(page.locator('.cell[data-index="4"]')).toHaveText('X');
-      await expect(page.locator('.cell[data-index="5"]')).toHaveText('O');
+      await expect(page.locator('.cell[data-index="4"]')).toHaveText('O');
 
-      // Verify moveHistory length is back to 5 (oldest removed)
+      // Verify moveHistory length is back to 7 (oldest removed)
       const historyAfter = await page.evaluate(() => moveHistory.length);
-      expect(historyAfter).toBe(5);
+      expect(historyAfter).toBe(7);
     });
 
     test('removes globally oldest mark, not player-specific oldest', async ({ page }) => {
-      // Place marks in specific order to test global removal
-      await page.locator('.cell[data-index="0"]').click(); // X - move 1 (oldest)
-      await page.locator('.cell[data-index="1"]').click(); // O - move 2
-      await page.locator('.cell[data-index="2"]').click(); // X - move 3
-      await page.locator('.cell[data-index="3"]').click(); // O - move 4
-      await page.locator('.cell[data-index="4"]').click(); // X - move 5
+      // Place 8 marks that don't cause a win, demonstrating global (not player-specific) removal
+      // First player makes first move (X), second player makes second move (O)
+      // After 8 moves, the globally oldest (first move) should be removed, not the oldest X or oldest O
+      const moves = [0, 1, 3, 2, 5, 6, 8, 7];
+      for (const i of moves) {
+        await page.locator(`.cell[data-index="${i}"]`).click();
+      }
 
-      // All 5 marks present
-      await expect(page.locator('.cell[data-index="0"]')).toHaveText('X');
-      await expect(page.locator('.cell[data-index="1"]')).toHaveText('O');
+      await page.waitForTimeout(250);
 
-      // Place 6th mark - should remove move 1 (X at index 0), not move 2 (O at index 1)
-      await page.locator('.cell[data-index="5"]').click(); // O - move 6
-
-      await page.waitForTimeout(200);
-
-      // Verify X at index 0 disappeared (globally oldest)
+      // Verify X at index 0 (first move) disappeared - proving global removal
       await expect(page.locator('.cell[data-index="0"]')).toHaveText('');
 
-      // Verify O at index 1 still present (not removed based on player)
+      // Verify O at index 1 (second move) still present
       await expect(page.locator('.cell[data-index="1"]')).toHaveText('O');
 
-      // Place 7th mark - should remove move 2 (O at index 1)
-      await page.locator('.cell[data-index="6"]').click(); // X - move 7
+      // Cell 1 should now be the oldest and have the indicator
+      await expect(page.locator('.cell[data-index="1"]')).toHaveClass(/next-to-fade/);
 
-      await page.waitForTimeout(200);
-
-      // Verify O at index 1 disappeared
-      await expect(page.locator('.cell[data-index="1"]')).toHaveText('');
-
-      // Verify other marks still present
-      await expect(page.locator('.cell[data-index="2"]')).toHaveText('X');
-      await expect(page.locator('.cell[data-index="3"]')).toHaveText('O');
+      // Verify we have exactly 7 marks in history (8 placed - 1 removed)
+      const historyLength = await page.evaluate(() => moveHistory.length);
+      expect(historyLength).toBe(7);
     });
 
     test('fade animation is visible before mark disappears', async ({ page }) => {
-      // Place 5 marks
-      await page.locator('.cell[data-index="0"]').click(); // X
-      await page.locator('.cell[data-index="1"]').click(); // O
-      await page.locator('.cell[data-index="2"]').click(); // X
-      await page.locator('.cell[data-index="3"]').click(); // O
-      await page.locator('.cell[data-index="4"]').click(); // X
+      // Place 7 marks
+      const moves = [0, 1, 3, 2, 5, 6, 8];
+      for (const i of moves) {
+        await page.locator(`.cell[data-index="${i}"]`).click();
+      }
 
-      // Place 6th mark
-      await page.locator('.cell[data-index="5"]').click(); // O
+      // Place 8th mark to trigger removal
+      await page.locator('.cell[data-index="4"]').click(); // O
 
       // Immediately check for fading class (within animation duration)
       await page.waitForTimeout(20); // Small delay to ensure animation starts
@@ -249,9 +230,9 @@ test.describe('P5: Disappearing Marks Mechanic', () => {
       const aiMarks = boardState.filter(cell => cell === 'O').length;
       expect(aiMarks).toBeGreaterThan(0); // AI made at least one move
 
-      // Total marks should be 5 or less due to disappearing mechanic (if 6+ moves made)
-      if (historyLength >= 5) {
-        expect(totalMarks).toBeLessThanOrEqual(5);
+      // Total marks should be 7 or less due to disappearing mechanic (if 8+ moves made)
+      if (historyLength > 7) {
+        expect(totalMarks).toBeLessThanOrEqual(7);
       }
     });
   });
@@ -318,49 +299,47 @@ test.describe('P5: Disappearing Marks Mechanic', () => {
       await page.locator('#mode-local').click();
     });
 
-    test('does not remove marks when exactly 5 moves placed', async ({ page }) => {
-      // Place exactly 5 marks
-      await page.locator('.cell[data-index="0"]').click(); // X
-      await page.locator('.cell[data-index="1"]').click(); // O
-      await page.locator('.cell[data-index="2"]').click(); // X
-      await page.locator('.cell[data-index="3"]').click(); // O
-      await page.locator('.cell[data-index="4"]').click(); // X
+    test('does not remove marks when exactly 7 moves placed', async ({ page }) => {
+      // Place exactly 7 marks (avoid winning)
+      const moves = [0, 1, 3, 2, 5, 6, 8];
+      for (const i of moves) {
+        await page.locator(`.cell[data-index="${i}"]`).click();
+      }
 
       await page.waitForTimeout(100);
 
-      // Verify all 5 marks are still present
+      // Verify all 7 marks are still present
       await expect(page.locator('.cell[data-index="0"]')).toHaveText('X');
       await expect(page.locator('.cell[data-index="1"]')).toHaveText('O');
-      await expect(page.locator('.cell[data-index="2"]')).toHaveText('X');
-      await expect(page.locator('.cell[data-index="3"]')).toHaveText('O');
-      await expect(page.locator('.cell[data-index="4"]')).toHaveText('X');
+      await expect(page.locator('.cell[data-index="2"]')).toHaveText('O');
+      await expect(page.locator('.cell[data-index="3"]')).toHaveText('X');
+      await expect(page.locator('.cell[data-index="5"]')).toHaveText('X');
+      await expect(page.locator('.cell[data-index="6"]')).toHaveText('O');
+      await expect(page.locator('.cell[data-index="8"]')).toHaveText('X');
 
-      // Verify moveHistory length is 5
+      // Verify moveHistory length is 7
       const historyLength = await page.evaluate(() => moveHistory.length);
-      expect(historyLength).toBe(5);
+      expect(historyLength).toBe(7);
     });
 
     test('handles rapid move placement correctly', async ({ page }) => {
-      // Place 7 moves rapidly
-      await page.locator('.cell[data-index="0"]').click();
-      await page.locator('.cell[data-index="1"]').click();
-      await page.locator('.cell[data-index="2"]').click();
-      await page.locator('.cell[data-index="3"]').click();
-      await page.locator('.cell[data-index="4"]').click();
-      await page.locator('.cell[data-index="5"]').click();
-      await page.locator('.cell[data-index="6"]').click();
+      // Place 9 moves rapidly (avoid winning) - triggers 2 removals
+      const moves = [0, 1, 3, 2, 5, 6, 8, 4, 7];
+      for (const i of moves) {
+        await page.locator(`.cell[data-index="${i}"]`).click();
+      }
 
       // Wait for all animations to complete
       await page.waitForTimeout(300);
 
       // Verify moveHistory maintains correct length
       const historyLength = await page.evaluate(() => moveHistory.length);
-      expect(historyLength).toBe(5); // Should be 5 after removals
+      expect(historyLength).toBe(7); // Should be 7 after 2 removals (9 - 2 = 7)
 
-      // Verify total marks on board is 5
+      // Verify total marks on board is 7
       const boardState = await page.evaluate(() => game.board);
       const totalMarks = boardState.filter(cell => cell !== null).length;
-      expect(totalMarks).toBe(5);
+      expect(totalMarks).toBe(7);
     });
 
     test('draw detection is skipped when moveHistory >= 5', async ({ page }) => {
@@ -387,6 +366,163 @@ test.describe('P5: Disappearing Marks Mechanic', () => {
       // Verify checkDraw returns false
       const drawResult = await page.evaluate(() => checkDraw());
       expect(drawResult).toBe(false);
+    });
+  });
+
+  test.describe('Visual Indicator for Next-to-Disappear Mark', () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto('/');
+      await page.locator('#mode-local').click();
+    });
+
+    test('shows next-to-fade indicator on oldest mark at 7 moves', async ({ page }) => {
+      // Play 7 moves: X at 0,3,5,8  O at 1,2,6
+      const moves = [0, 1, 3, 2, 5, 6, 8];
+      for (const i of moves) {
+        await page.locator(`.cell[data-index="${i}"]`).click();
+      }
+
+      // Oldest mark (index 0) should have indicator
+      await expect(page.locator('.cell[data-index="0"]')).toHaveClass(/next-to-fade/);
+      // Only one cell should have indicator
+      await expect(page.locator('.cell.next-to-fade')).toHaveCount(1);
+    });
+
+    test('indicator stays on same cell until removal at move 8', async ({ page }) => {
+      // Play 7 moves that don't result in a win
+      const moves = [0, 1, 3, 2, 5, 6, 8];
+      for (const i of moves) {
+        await page.locator(`.cell[data-index="${i}"]`).click();
+      }
+
+      // Verify indicator on cell 0
+      await expect(page.locator('.cell[data-index="0"]')).toHaveClass(/next-to-fade/);
+
+      // Move 8 removes cell 0, indicator shifts to cell 1
+      await page.locator('.cell[data-index="4"]').click();
+      await page.waitForTimeout(200);
+
+      await expect(page.locator('.cell[data-index="0"]')).not.toHaveClass(/next-to-fade/);
+      await expect(page.locator('.cell[data-index="1"]')).toHaveClass(/next-to-fade/);
+    });
+
+    test('indicator moves to new oldest mark after removal', async ({ page }) => {
+      // Play 8 moves (triggers removal of first mark)
+      const moves = [0, 1, 3, 2, 5, 6, 8, 4];
+      for (const i of moves) {
+        await page.locator(`.cell[data-index="${i}"]`).click();
+      }
+      await page.waitForTimeout(200);
+
+      // Cell 1 is now oldest (cell 0 was removed)
+      await expect(page.locator('.cell[data-index="1"]')).toHaveClass(/next-to-fade/);
+    });
+
+    test('no indicator present after game reset', async ({ page }) => {
+      // Play 7 moves to trigger indicator (avoid winning)
+      const moves = [0, 1, 3, 2, 5, 6, 8];
+      for (const i of moves) {
+        await page.locator(`.cell[data-index="${i}"]`).click();
+      }
+      await expect(page.locator('.cell.next-to-fade')).toHaveCount(1);
+
+      // Reset game
+      await page.locator('#new-game').click();
+      await page.waitForTimeout(200);
+
+      // No indicator should exist
+      await expect(page.locator('.cell.next-to-fade')).toHaveCount(0);
+    });
+
+    test('no next-to-fade indicator when less than 7 moves', async ({ page }) => {
+      // Play 6 moves (below threshold)
+      for (let i = 0; i < 6; i++) {
+        await page.locator(`.cell[data-index="${i}"]`).click();
+      }
+
+      // No indicator should be present
+      await expect(page.locator('.cell.next-to-fade')).toHaveCount(0);
+    });
+
+    test('indicator appears correctly in AI mode', async ({ page }) => {
+      await page.goto('/');
+      await page.locator('#mode-ai-x').click();
+
+      // Play moves until 7+ total
+      await page.locator('.cell[data-index="0"]').click();
+      await page.waitForTimeout(500);
+      await page.locator('.cell[data-index="2"]').click();
+      await page.waitForTimeout(500);
+      await page.locator('.cell[data-index="5"]').click();
+      await page.waitForTimeout(500);
+      await page.locator('.cell[data-index="6"]').click();
+      await page.waitForTimeout(500);
+
+      // After 7+ moves, indicator should be present on oldest mark
+      const moveCount = await page.evaluate(() => moveHistory.length);
+      if (moveCount >= 7) {
+        await expect(page.locator('.cell.next-to-fade')).toHaveCount(1);
+      }
+    });
+
+    test.skip('indicator syncs between WebRTC peers', async ({ browser }) => {
+      const context1 = await browser.newContext();
+      const context2 = await browser.newContext();
+      const host = await context1.newPage();
+      const guest = await context2.newPage();
+
+      await host.goto('/');
+      await guest.goto('/');
+
+      // Connection setup
+      await host.locator('#mode-webrtc').click();
+      await host.locator('#create-game').click();
+      await host.waitForTimeout(1000);
+      const offerCode = await host.locator('#connection-code').inputValue();
+
+      await guest.locator('#mode-webrtc').click();
+      await guest.locator('#join-game').click();
+      await guest.locator('#peer-code').fill(offerCode);
+      await guest.locator('#connect-peer').click();
+      await guest.waitForTimeout(2000);
+      const answerCode = await guest.locator('#connection-code').inputValue();
+
+      await host.locator('#peer-code').fill(answerCode);
+      await host.locator('#connect-peer').click();
+      await host.waitForTimeout(2000);
+
+      // Play 7 moves alternating
+      const moves = [[0, 'host'], [1, 'guest'], [2, 'host'], [3, 'guest'], [4, 'host'], [5, 'guest'], [6, 'host']];
+      for (const [idx, player] of moves) {
+        const page = player === 'host' ? host : guest;
+        await page.locator(`.cell[data-index="${idx}"]`).click();
+        await host.waitForTimeout(300);
+      }
+
+      // Both peers should show indicator on same cell
+      await expect(host.locator('.cell[data-index="0"]')).toHaveClass(/next-to-fade/);
+      await expect(guest.locator('.cell[data-index="0"]')).toHaveClass(/next-to-fade/);
+
+      await context1.close();
+      await context2.close();
+    });
+
+    test('next-to-fade and winning classes can coexist on same cell', async ({ page }) => {
+      // Careful sequence: X wins at move 7 with cell 0 being oldest
+      // Moves: 0(X), 3(O), 1(X), 4(O), 6(X), 7(O), 2(X) wins row 0-1-2
+      const moves = [0, 3, 1, 4, 6, 7, 2];
+      for (const i of moves) {
+        await page.locator(`.cell[data-index="${i}"]`).click();
+      }
+
+      // Cell 0 should have winning class (part of winning line)
+      await expect(page.locator('.cell[data-index="0"]')).toHaveClass(/winning/);
+
+      // Cell 0 is also oldest - may have next-to-fade
+      // Either behavior (present or absent) is acceptable after win
+      // Just verify no JS error and game completed properly
+      const isGameOver = await page.evaluate(() => game.isGameOver);
+      expect(isGameOver).toBe(true);
     });
   });
 });

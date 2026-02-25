@@ -713,7 +713,8 @@ if [ "$UPDATE_PRD" = true ] && [ -f "PRD.md" ]; then
     echo "" >> "$RALPH_DIR/interview.md"
   done
 
-  # --- PHASE 2: PRD UPDATER ---
+  # --- PHASE 2: PRD UPDATE CYCLE (outer loop: user approval) ---
+  while true; do
   prd_update_attempt=1
   while true; do
     echo ""
@@ -725,11 +726,16 @@ if [ "$UPDATE_PRD" = true ] && [ -f "PRD.md" ]; then
       local_review_prompt="PREVIOUS REVIEW FEEDBACK — you MUST address these issues: @.ralph/prd-review.md"
     fi
 
+    user_feedback_prompt=""
+    if [ -f "$RALPH_DIR/user-feedback.md" ]; then
+      user_feedback_prompt="USER FEEDBACK — the human reviewed your PRD and requested these changes. You MUST address ALL of them: @.ralph/user-feedback.md"
+    fi
+
     claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p \
       "@PRD.md @.claude/features.json @.ralph/interview.md \
       You are the PRD UPDATER. Read the EXISTING PRD.md, features.json, and the interview notes. \
       \
-      $local_review_prompt \
+      $local_review_prompt $user_feedback_prompt \
       \
       Your job is to ADD new sections to the existing PRD and features.json based on the interview. \
       \
@@ -816,7 +822,10 @@ SYNC_EOF
       print_rejection "PRD" "$RALPH_DIR/prd-review.md"
       prd_update_attempt=$((prd_update_attempt + 1))
     fi
-  done
+  done  # inner loop (updater ↔ reviewer)
+
+  # Clean user feedback after updater addressed it
+  rm -f "$RALPH_DIR/user-feedback.md"
 
   # --- FINAL APPROVAL ---
   echo ""
@@ -825,7 +834,7 @@ SYNC_EOF
   echo "─────────────────────────────────────────"
   echo ""
 
-  printf "  ${BOLD}Approve PRD update?${RESET} [${GREEN}s${RESET}] approve  [${RED}n${RESET}] redo > "
+  printf "  ${BOLD}Approve PRD update?${RESET} [${GREEN}s${RESET}] approve  [${RED}n${RESET}] request changes > "
   read -r prd_choice
 
   case "$prd_choice" in
@@ -833,13 +842,19 @@ SYNC_EOF
       printf "  ${GREEN}PRD updated and committed.${RESET}\n"
       git add PRD.md .claude/features.json 2>/dev/null || true
       git commit -m "docs: update PRD and features.json via ralph PRD update" 2>/dev/null || true
+      break  # exit outer loop
       ;;
     *)
-      printf "  ${RED}PRD update rejected. Reverting...${RESET}\n"
-      git checkout PRD.md .claude/features.json 2>/dev/null || true
-      exit 1
+      echo ""
+      printf "  ${YELLOW}What should change?${RESET}\n"
+      printf "  > "
+      read -r _user_fb
+      echo "$_user_fb" > "$RALPH_DIR/user-feedback.md"
+      printf "  ${DIM}Sending back to PRD updater with your feedback...${RESET}\n"
+      # continue → outer loop retries with user feedback
       ;;
   esac
+  done  # outer loop (user approval)
 
   echo ""
 fi
@@ -1001,7 +1016,8 @@ if [ ! -f "PRD.md" ]; then
     echo "$chosen_name" >> "$RALPH_DIR/chosen-approach.md"
   fi
 
-  # --- PHASE 3: PRD WRITER (with review loop) ---
+  # --- PHASE 3: PRD CREATION CYCLE (outer loop: user approval) ---
+  while true; do
   prd_attempt=1
   while true; do
     echo ""
@@ -1013,12 +1029,17 @@ if [ ! -f "PRD.md" ]; then
       local_review_prompt="PREVIOUS REVIEW FEEDBACK — you MUST address these issues: @.ralph/prd-review.md"
     fi
 
+    user_feedback_prompt=""
+    if [ -f "$RALPH_DIR/user-feedback.md" ]; then
+      user_feedback_prompt="USER FEEDBACK — the human reviewed your PRD and requested these changes. You MUST address ALL of them: @.ralph/user-feedback.md"
+    fi
+
     claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p \
       "@.ralph/interview.md @.ralph/approaches.md @.ralph/chosen-approach.md \
       You are the PRD WRITER. Read the interview notes, approaches, and the chosen approach. \
       Generate a complete PRD and feature tracking file. \
       \
-      $local_review_prompt \
+      $local_review_prompt $user_feedback_prompt \
       \
       Create PRD.md with this EXACT structure: \
       # <Project Name> \
@@ -1100,7 +1121,10 @@ if [ ! -f "PRD.md" ]; then
       print_rejection "PRD" "$RALPH_DIR/prd-review.md"
       prd_attempt=$((prd_attempt + 1))
     fi
-  done
+  done  # inner loop (writer ↔ reviewer)
+
+  # Clean user feedback after writer addressed it
+  rm -f "$RALPH_DIR/user-feedback.md"
 
   # --- FINAL APPROVAL ---
   echo ""
@@ -1109,7 +1133,7 @@ if [ ! -f "PRD.md" ]; then
   echo "─────────────────────────────────────────"
   echo ""
 
-  printf "  ${BOLD}Approve this PRD?${RESET} [${GREEN}s${RESET}] approve  [${RED}n${RESET}] redo > "
+  printf "  ${BOLD}Approve this PRD?${RESET} [${GREEN}s${RESET}] approve  [${RED}n${RESET}] request changes > "
   read -r prd_choice
 
   case "$prd_choice" in
@@ -1117,13 +1141,19 @@ if [ ! -f "PRD.md" ]; then
       printf "  ${GREEN}PRD approved and committed.${RESET}\n"
       git add PRD.md .claude/features.json 2>/dev/null || true
       git commit -m "docs: create PRD and features.json via ralph PRD creation" 2>/dev/null || true
+      break  # exit outer loop
       ;;
     *)
-      printf "  ${RED}PRD rejected. Please create PRD.md manually and re-run.${RESET}\n"
-      rm -f PRD.md .claude/features.json
-      exit 1
+      echo ""
+      printf "  ${YELLOW}What should change?${RESET}\n"
+      printf "  > "
+      read -r _user_fb
+      echo "$_user_fb" > "$RALPH_DIR/user-feedback.md"
+      printf "  ${DIM}Sending back to PRD writer with your feedback...${RESET}\n"
+      # continue → outer loop retries with user feedback
       ;;
   esac
+  done  # outer loop (user approval)
 
   echo ""
 fi

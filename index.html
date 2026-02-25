@@ -158,6 +158,16 @@
         @media (prefers-reduced-motion: reduce) {
             .fading { animation: none; opacity: 0; }
         }
+
+        .cell.next-to-fade {
+            opacity: 0.5;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .cell.next-to-fade {
+                opacity: 0.5;
+            }
+        }
         .status {
             font-size: 1.25rem;
             min-height: 2rem;
@@ -884,6 +894,9 @@
 
         // Update the UI to reflect game state
         function updateUI() {
+            // Compute oldest index ONCE before loop
+            const oldestIndex = (moveHistory.length >= 7) ? moveHistory[0] : -1;
+
             cells.forEach((cell, index) => {
                 // Skip cells currently fading out - let animation complete
                 if (cell.classList.contains('fading')) return;
@@ -894,7 +907,8 @@
                 const hasNewMark = value && wasEmpty;
                 const isWinning = cell.classList.contains('winning');
                 const isClearing = cell.classList.contains('clearing');
-                cell.className = 'cell' + (value ? ` ${value.toLowerCase()}` : '') + (hasNewMark ? ' animate-in' : '') + (isWinning ? ' winning' : '') + (isClearing ? ' clearing' : '');
+                const isNextToFade = (index === oldestIndex);
+                cell.className = 'cell' + (value ? ` ${value.toLowerCase()}` : '') + (hasNewMark ? ' animate-in' : '') + (isWinning ? ' winning' : '') + (isClearing ? ' clearing' : '') + (isNextToFade ? ' next-to-fade' : '');
             });
 
             // WebRTC mode status messages
