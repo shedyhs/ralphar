@@ -118,31 +118,23 @@ print_rejection() {
   if ! [ -f "$file" ] || ! grep -q "CHANGES_REQUESTED" "$file" 2>/dev/null; then
     return
   fi
-  # Extract numbered/bulleted items, clean and join as brief summary
-  local issues
-  issues=$(grep -E "^[[:space:]]*([-*]|[0-9]+[.\)])[[:space:]]" "$file" | \
+  # Extract numbered/bulleted items, one per line
+  local items
+  items=$(grep -E "^[[:space:]]*([-*]|[0-9]+[.\)])[[:space:]]" "$file" | \
     sed 's/^[[:space:]]*[-*][[:space:]]*//' | \
     sed 's/^[[:space:]]*[0-9]*[.)][[:space:]]*//' | \
-    sed 's/[`*]//g' | \
-    head -3 | \
-    tr '\n' ';' | \
-    sed 's/;$//' | \
-    sed 's/;/; /g')
-  if [ -z "$issues" ]; then
-    issues=$(tail -n +2 "$file" | grep -v "^$" | grep -vi "^verdict" | sed 's/[`*]//g' | head -1)
+    sed 's/[\`*]//g')
+  if [ -z "$items" ]; then
+    items=$(tail -n +2 "$file" | grep -v "^$" | grep -vi "^verdict" | grep -vi "^NEEDS_RE_EXPLORATION" | sed 's/[\`*]//g')
   fi
-  if [ -n "$issues" ]; then
-    printf "    ${RED}%s: %.120s${RESET}\n" "$label" "$issues"
+  if [ -z "$items" ]; then
+    return
   fi
-}
-
-needs_re_exploration() {
-  for v in a b c; do
-    if grep -q "NEEDS_RE_EXPLORATION: YES" ".ralph/validation-${v}.md" 2>/dev/null; then
-      return 0
-    fi
-  done
-  return 1
+  printf "    ${RED}%s:${RESET}\n" "$label"
+  while IFS= read -r item; do
+    [ -z "$item" ] && continue
+    printf "      ${DIM}· %s${RESET}\n" "$item"
+  done <<< "$items"
 }
 
 save_validation_history() {
@@ -344,8 +336,12 @@ run_plan_patcher() {
   \
   $checkpoint_prompt \
   \
-  Do NOT explore the codebase — all context is in .ralph/context.md. \
-  Do NOT implement any code. ONLY modify .ralph/plan.md. \
+  If a validator flagged NEEDS_RE_EXPLORATION: YES, you MAY use the Task tool with \
+  subagent_type=Explore to make 1-2 TARGETED searches for the specific missing context. \
+  Only search for what the validators explicitly flagged as missing — do NOT do a broad exploration. \
+  Append any new findings to .ralph/context.md (do NOT overwrite existing context). \
+  \
+  Do NOT implement any code. ONLY modify .ralph/plan.md (and optionally append to .ralph/context.md). \
   \
   CHECKPOINT: If you cannot complete the patching, save a detailed progress summary \
   to .ralph/checkpoint-plan-patcher.md including: \
@@ -907,7 +903,49 @@ for ((i=1; i<=LOOPS; i++)); do
     printf "${BOLD}───── ITERATION $i ─────${RESET}\n"
   fi
 
-  clean_ralph
+  # Early PRD completion check: if all features pass, stop immediately
+  if [ -z "$TASK" ] && [ -f ".claude/features.json" ]; then
+    _all_done=true
+    while IFS= read -r line; do
+      if echo "$line" | grep -q '"passes"[[:space:]]*:[[:space:]]*false'; then
+        _all_done=false
+        break
+      fi
+    done < .claude/features.json
+    if [ "$_all_done" = true ]; then
+      printf "  ${GREEN}All features complete. Nothing to do.${RESET}\n"
+      exit 0
+    fi
+  fi
+
+  # Resume detection: skip planning if plan was approved AND feature branch still exists
+  _resumed=false
+  if [ -f "$RALPH_DIR/plan.md" ]; then
+    _plan_approved=0
+    for v in a b c; do
+      grep -q "VERDICT: APPROVED" ".ralph/validation-${v}.md" 2>/dev/null && _plan_approved=$((_plan_approved + 1))
+    done
+    # Derive feature branch name from plan to check if it still exists (not merged yet)
+    _plan_task=$(grep -m1 "^#" .ralph/plan.md 2>/dev/null | sed 's/^#* *//' || echo "")
+    _plan_slug=$(slugify "$_plan_task")
+    _plan_branch="feature/${_plan_slug}"
+    if [ "$_plan_approved" -eq 3 ] && git rev-parse --verify "$_plan_branch" >/dev/null 2>&1; then
+      _resumed=true
+      task_name="$_plan_task"
+      printf "  ${GREEN}▸ Resuming from approved plan${RESET}"
+      if [ -n "$task_name" ]; then
+        printf " — ${YELLOW}%s${RESET}" "$task_name"
+      fi
+      printf "\n"
+      # Clean only implementation artifacts
+      rm -f "$RALPH_DIR/implementation.md" "$RALPH_DIR/review.md" "$RALPH_DIR/review-frontend.md" \
+        "$RALPH_DIR/review-backend.md" "$RALPH_DIR/test-report.md" "$RALPH_DIR/checkpoint-implementer.md"
+    else
+      clean_ralph
+    fi
+  else
+    clean_ralph
+  fi
 
   # Debug: verify PRD.md exists at start of each iteration
   if [ -f "PRD.md" ]; then
@@ -915,6 +953,8 @@ for ((i=1; i<=LOOPS; i++)); do
   else
     printf "  ${RED}[debug] PRD.md NOT FOUND (branch: %s, pwd: %s)${RESET}\n" "$(git branch --show-current)" "$(pwd)"
   fi
+
+  if [ "$_resumed" = false ]; then
 
   # === PLANNING PHASE ===
   plan_attempt=1
@@ -967,9 +1007,9 @@ for ((i=1; i<=LOOPS; i++)); do
       break
     else
       step_done "A:$va  B:$vb  C:$vc — ${RED}REJECTED${RESET}"
-      print_rejection "A" ".ralph/validation-a.md"
-      print_rejection "B" ".ralph/validation-b.md"
-      print_rejection "C" ".ralph/validation-c.md"
+      print_rejection "A · Coherence" ".ralph/validation-a.md"
+      print_rejection "B · Completeness" ".ralph/validation-b.md"
+      print_rejection "C · Simplicity" ".ralph/validation-c.md"
       plan_attempt=$((plan_attempt + 1))
 
       save_validation_history "$((plan_attempt - 1))"
@@ -981,13 +1021,7 @@ for ((i=1; i<=LOOPS; i++)); do
         continue
       fi
 
-      # 1-2 rejected: patch the existing plan
-      if needs_re_exploration; then
-        printf "    ${DIM}Re-exploring (validator requested)${RESET}\n"
-        step "Re-exploring..."
-        run_with_checkpoint run_explorer 3 "explorer" "$plan_attempt"
-        step_done
-      fi
+      # 1-2 rejected: patch the existing plan (patcher can explore if needed)
 
       printf "    ${DIM}Patching existing plan${RESET}\n"
       step "Patching plan..."
@@ -1026,15 +1060,17 @@ for ((i=1; i<=LOOPS; i++)); do
         break
       else
         step_done "A:$va  B:$vb  C:$vc — ${RED}REJECTED${RESET}"
-        print_rejection "A" ".ralph/validation-a.md"
-        print_rejection "B" ".ralph/validation-b.md"
-        print_rejection "C" ".ralph/validation-c.md"
+        print_rejection "A · Coherence" ".ralph/validation-a.md"
+        print_rejection "B · Completeness" ".ralph/validation-b.md"
+        print_rejection "C · Simplicity" ".ralph/validation-c.md"
         # Next iteration will go through the top of the loop (full regeneration)
         rm -f "$RALPH_DIR/checkpoint-explorer.md" "$RALPH_DIR/checkpoint-plan-writer.md" "$RALPH_DIR/checkpoint-plan-patcher.md"
         plan_attempt=$((plan_attempt + 1))
       fi
     fi
   done
+  fi  # end resume skip
+
 
   # === CREATE FEATURE BRANCH ===
   task_name=$(grep -m1 "^#" .ralph/plan.md 2>/dev/null | sed 's/^#* *//' || echo "")
@@ -1128,8 +1164,8 @@ for ((i=1; i<=LOOPS; i++)); do
       break
     else
       step_done "FE:$fe  BE:$be — ${RED}REJECTED${RESET}"
-      print_rejection "FE" ".ralph/review-frontend.md"
-      print_rejection "BE" ".ralph/review-backend.md"
+      print_rejection "FE · Frontend" ".ralph/review-frontend.md"
+      print_rejection "BE · Backend" ".ralph/review-backend.md"
       cat .ralph/review-frontend.md > .ralph/review.md 2>/dev/null || true
       echo "" >> .ralph/review.md
       echo "---" >> .ralph/review.md
