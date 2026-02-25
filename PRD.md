@@ -38,11 +38,11 @@ A full interactive TUI application built with Rust and ratatui that provides a s
 ## Requirements
 
 ### [P0] Initial setup
-- [ ] Create Rust project with cargo workspace structure
-- [ ] Configure ratatui, tokio, crossterm, and serde dependencies
-- [ ] Set up clippy, rustfmt, and cargo-deny for linting
-- [ ] Configure unit and integration test framework
-- [ ] Create basic CI pipeline for builds and tests
+- [x] Create Rust project with cargo workspace structure
+- [x] Configure ratatui, tokio, crossterm, and serde dependencies
+- [x] Set up clippy, rustfmt, and cargo-deny for linting
+- [x] Configure unit and integration test framework
+- [x] Create basic CI pipeline for builds and tests
 
 ### [P1] Core TUI framework
 - [ ] Implement terminal initialization and cleanup with crossterm backend

@@ -13,6 +13,7 @@
       "rustfmt.toml",
       "deny.toml",
       "tests/integration_test.rs",
+      "tests/e2e_cli_test.rs",
       ".gitignore",
       ".github/workflows/ci.yml"
     ],
@@ -23,6 +24,7 @@
       "Configured cargo-deny v2 for dependency auditing with license and security checks",
       "Implemented unit and integration test framework with passing tests",
       "Created GitHub Actions CI pipeline with build, test, lint, and security checks",
+      "Added E2E CLI tests using assert_cmd and predicates to verify binary execution",
       "All verifications passing: build, test, fmt, clippy, cargo-deny"
     ]
   },
