@@ -145,6 +145,22 @@ needs_re_exploration() {
   return 1
 }
 
+save_validation_history() {
+  local round=$1
+  {
+    echo ""
+    echo "===== ROUND $round ====="
+    for v in a b c; do
+      local file=".ralph/validation-${v}.md"
+      if [ -f "$file" ]; then
+        echo ""
+        echo "--- Validator $(echo "$v" | tr '[:lower:]' '[:upper:]') ---"
+        cat "$file"
+      fi
+    done
+  } >> "$RALPH_DIR/validation-history.md"
+}
+
 clean_ralph() {
   rm -rf "$RALPH_DIR"
   mkdir -p "$RALPH_DIR"
@@ -200,10 +216,16 @@ run_explorer() {
   local attempt=$1
 
   local feedback_prompt=""
+  local history_ref=""
   if [ "$attempt" -gt 1 ]; then
     feedback_prompt="Previous validator feedback that you MUST address: \
     @.ralph/validation-a.md @.ralph/validation-b.md @.ralph/validation-c.md \
     Carefully read ALL feedback — the plan was rejected. Explore additional context to address the issues."
+    if [ -f "$RALPH_DIR/validation-history.md" ]; then
+      history_ref="@.ralph/validation-history.md"
+      feedback_prompt="$feedback_prompt \
+      Also read the full validation history ($history_ref) to understand ALL issues raised across previous rounds."
+    fi
   fi
 
   local task_prompt=""
@@ -249,6 +271,10 @@ run_plan_writer() {
     feedback_prompt="Previous validator feedback that you MUST address: \
     @.ralph/validation-a.md @.ralph/validation-b.md @.ralph/validation-c.md \
     Carefully read ALL feedback and adjust your plan to address every issue raised."
+    if [ -f "$RALPH_DIR/validation-history.md" ]; then
+      feedback_prompt="$feedback_prompt \
+      Also read the full validation history (@.ralph/validation-history.md) to understand ALL issues raised across previous rounds."
+    fi
   fi
 
   local task_prompt=""
@@ -298,12 +324,18 @@ run_plan_patcher() {
     Continue patching the plan from where you left off."
   fi
 
+  local history_ref=""
+  if [ -f "$RALPH_DIR/validation-history.md" ]; then
+    history_ref="@.ralph/validation-history.md"
+  fi
+
   echo "plan-patcher" > "$RALPH_DIR/current-agent"
   claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p "@PRD.md @.claude/features.json @.ralph/context.md @.ralph/plan.md \
-  @.ralph/validation-a.md @.ralph/validation-b.md @.ralph/validation-c.md \
+  @.ralph/validation-a.md @.ralph/validation-b.md @.ralph/validation-c.md $history_ref \
   You are the PLAN PATCHER. Your job: \
   1. Read the EXISTING plan in .ralph/plan.md carefully. \
   2. Read ALL validator feedback in .ralph/validation-{a,b,c}.md. \
+  If a validation history file is provided, also read it to understand issues from ALL previous rounds. \
   3. MODIFY the existing plan to address every issue raised by validators. \
      - KEEP sections that were NOT criticized — do not rewrite them. \
      - ONLY change sections that validators flagged as problematic. \
@@ -939,6 +971,8 @@ for ((i=1; i<=LOOPS; i++)); do
       print_rejection "B" ".ralph/validation-b.md"
       print_rejection "C" ".ralph/validation-c.md"
       plan_attempt=$((plan_attempt + 1))
+
+      save_validation_history "$((plan_attempt - 1))"
 
       if [ "$approved" -eq 0 ]; then
         # All 3 rejected: regenerate from scratch
