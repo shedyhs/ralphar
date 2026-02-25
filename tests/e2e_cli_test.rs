@@ -7,7 +7,7 @@
 /// Verify the binary exists and can be built
 #[test]
 fn binary_exists() {
-    let path = assert_cmd::cargo::cargo_bin("ralph-tui");
+    let path = assert_cmd::cargo::cargo_bin!("ralph-tui");
     assert!(path.exists(), "Binary should exist at {:?}", path);
 }
 

@@ -24,8 +24,10 @@ fn render_header(frame: &mut Frame, area: Rect) {
 }
 
 fn render_main(frame: &mut Frame, area: Rect, _app: &App) {
-    let content = Paragraph::new("Press 'q' or Esc to quit\nCtrl+Up/Down: resize header\nCtrl+Shift+Up/Down: resize footer")
-        .block(Block::default().borders(Borders::ALL).title("Main"));
+    let content = Paragraph::new(
+        "Press 'q' or Esc to quit\nCtrl+Up/Down: resize header\nCtrl+Shift+Up/Down: resize footer",
+    )
+    .block(Block::default().borders(Borders::ALL).title("Main"));
     frame.render_widget(content, area);
 }
 
@@ -87,7 +89,7 @@ mod tests {
         let chunks = calculate_layout(area, 5, 4);
         assert_eq!(chunks[0].height, 5); // Header resized to 5
         assert_eq!(chunks[2].height, 4); // Footer resized to 4
-        // 24 total - 5 header - 4 footer = 15 main
+                                         // 24 total - 5 header - 4 footer = 15 main
         assert_eq!(chunks[1].height, 15);
     }
 }
