@@ -1,0 +1,22 @@
+[package]
+name = "ralph-tui"
+version = "0.1.0"
+edition = "2021"
+description = "Interactive TUI for ralph.sh pipelines"
+license = "MIT"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
