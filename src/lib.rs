@@ -4,6 +4,7 @@ pub mod app;
 pub mod event;
 pub mod event_handler;
 pub mod terminal;
+pub mod ui;
 
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
