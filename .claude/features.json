@@ -110,7 +110,7 @@
       "Modified _resetGameState() with animate parameter for two-phase reset strategy (animated vs immediate)",
       "Implemented immediate state reset with delayed UI update to prevent unplayable period during animation",
       "Early guard release in _resetGameState() to allow rapid resets without blocking legitimate user actions",
-      "Updated resetGame() with 400ms AI delay (150ms animation + 250ms thinking) for proper timing",
+      "Updated resetGame() with 450ms AI delay (150ms animation + 300ms thinking) for proper timing",
       "Updated game initialization functions (startLocalGame, startAIGame, showModeSelection) to use immediate reset",
       "Added 7 E2E tests for board reset transitions covering animation, rapid resets, AI integration, and WebRTC sync",
       "Modified existing test to verify 150ms animation timing instead of instant clearing",
