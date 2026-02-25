@@ -106,7 +106,8 @@ test.describe('P4: WebRTC Multiplayer', () => {
         await context2.close();
     });
 
-    test('draw detected on both peers', async ({ browser }) => {
+    test.skip('draw detected on both peers', async ({ browser }) => {
+        // OBSOLETE: With P5 disappearing marks mechanic, draws are impossible after move 5.
         const context1 = await browser.newContext();
         const context2 = await browser.newContext();
         const host = await context1.newPage();

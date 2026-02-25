@@ -183,7 +183,9 @@ test.describe('P3 Animations', () => {
       await expect(mpOWins).toHaveText('1');
     });
 
-    test('Multiplayer draw animates mp-draws', async ({ page }) => {
+    test.skip('Multiplayer draw animates mp-draws', async ({ page }) => {
+      // OBSOLETE: With P5 disappearing marks mechanic, draws are impossible after move 5.
+      // Marks disappear after 5 total moves on board, preventing the board from ever filling.
       await page.click('#mode-local');
 
       // Create a draw game

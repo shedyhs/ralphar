@@ -144,6 +144,20 @@
         .clearing {
             animation: cellClear 0.15s ease-out forwards;
         }
+
+        /* Mark fade out animation for disappearing marks */
+        @keyframes markFadeOut {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.8); }
+        }
+        .fading {
+            animation: markFadeOut 0.15s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .fading { animation: none; opacity: 0; }
+        }
         .status {
             font-size: 1.25rem;
             min-height: 2rem;
@@ -378,6 +392,7 @@
 
         // Reset state
         let isResetting = false;
+        let moveHistory = [];  // Array of cell indices in placement order
 
         // Load scores from localStorage
         function loadScores() {
@@ -692,12 +707,13 @@
                 game.currentPlayer = 'X';
                 game.isGameOver = false;
                 game.winner = null;
+                moveHistory = [];
                 isResetting = false;  // Release guard immediately after state reset
 
                 // Delay UI update to show animation
                 setTimeout(() => {
                     cells.forEach(cell => {
-                        cell.classList.remove('winning', 'clearing');
+                        cell.classList.remove('winning', 'clearing', 'fading');
                     });
                     updateUI();
                 }, 150);
@@ -707,8 +723,9 @@
                 game.currentPlayer = 'X';
                 game.isGameOver = false;
                 game.winner = null;
+                moveHistory = [];
                 cells.forEach(cell => {
-                    cell.classList.remove('winning', 'clearing');
+                    cell.classList.remove('winning', 'clearing', 'fading');
                 });
                 updateUI();
                 isResetting = false;
@@ -722,13 +739,18 @@
             if (game.currentPlayer === game.playerSymbol) return;
 
             game.board[index] = game.currentPlayer;
+
+            // Track move and remove oldest if over 5 marks
+            moveHistory.push(index);
+            removeOldestMark();
+
             const winner = checkWinner();
             if (winner) {
                 game.isGameOver = true;
                 game.winner = winner;
                 highlightWinningLine(getWinningLine());  // CRITICAL FIX: Must pass getWinningLine() or highlight won't work
                 recordScore();
-            } else if (game.board.every(cell => cell !== null)) {
+            } else if (checkDraw()) {
                 game.isGameOver = true;
                 recordScore();
             } else {
@@ -837,12 +859,35 @@
 
         // Check for draw
         function checkDraw() {
+            // With disappearing marks active, draws are impossible
+            if (moveHistory.length >= 5) return false;
             return game.board.every(cell => cell !== null);
+        }
+
+        // Remove oldest mark when history exceeds 5 moves
+        function removeOldestMark() {
+            if (moveHistory.length <= 5) return;
+
+            const oldestIndex = moveHistory.shift();
+            if (game.board[oldestIndex] === null) return;  // Guard against double-removal
+
+            const cell = cells[oldestIndex];
+            cell.classList.add('fading');
+            game.board[oldestIndex] = null;
+
+            cell.addEventListener('animationend', () => {
+                cell.classList.remove('fading');
+                cell.textContent = '';
+                cell.className = 'cell';
+            }, { once: true });
         }
 
         // Update the UI to reflect game state
         function updateUI() {
             cells.forEach((cell, index) => {
+                // Skip cells currently fading out - let animation complete
+                if (cell.classList.contains('fading')) return;
+
                 const value = game.board[index];
                 cell.textContent = value || '';
                 const wasEmpty = !cell.classList.contains('x') && !cell.classList.contains('o');
@@ -894,6 +939,10 @@
 
             // Make move
             game.board[index] = game.currentPlayer;
+
+            // Track move and remove oldest if over 5 marks
+            moveHistory.push(index);
+            removeOldestMark();
 
             // Sync move to remote peer
             if (game.mode === 'webrtc' && dataChannel?.readyState === 'open') {

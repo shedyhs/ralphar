@@ -1,8 +1,12 @@
 #!/bin/bash
 set -e
 
+# Save terminal settings so we can restore on exit
+_saved_tty=$(stty -g 2>/dev/null || true)
+
 cleanup() {
-  trap - INT TERM
+  trap - INT TERM EXIT
+  stty "$_saved_tty" 2>/dev/null || stty sane 2>/dev/null || true
   echo ""
   printf "  ${RED}Interrupted. Killing all child processes...${RESET}\n"
   kill 0 2>/dev/null
@@ -20,6 +24,8 @@ LOOPS=""
 TASK=""
 FEATURE_BRANCH=""
 SKIP_TESTS=false
+NEW_PRD=false
+UPDATE_PRD=false
 
 # Model configuration
 MODEL_LEAD="claude-opus-4-5"      # Planner, validators, reviewers
@@ -31,6 +37,8 @@ usage() {
   echo "  <task>       What to implement (optional, picks from PRD if omitted)"
   echo "  --loop=N     Number of iterations (default: 1)"
   echo "  --no-test    Skip test writing and test running"
+  echo "  --new-prd    Remove existing PRD and generate a new one"
+  echo "  --update-prd Add features to the existing PRD"
   echo ""
   echo "Examples:"
   echo "  $0 transforma o frontend em componentes --loop=3"
@@ -44,6 +52,8 @@ for arg in "$@"; do
   case $arg in
     --loop=*) LOOPS="${arg#*=}" ;;
     --no-test) SKIP_TESTS=true ;;
+    --new-prd) NEW_PRD=true ;;
+    --update-prd) UPDATE_PRD=true ;;
     --help|-h) usage ;;
     *) task_words+=("$arg") ;;
   esac
@@ -609,6 +619,194 @@ run_committer() {
   wait $!
 }
 
+# === NEW PRD FLAG ===
+if [ "$NEW_PRD" = true ]; then
+  if [ -f "PRD.md" ]; then
+    printf "${YELLOW}Removing existing PRD.md and features.json...${RESET}\n"
+    rm -f PRD.md .claude/features.json
+  fi
+fi
+
+# === UPDATE PRD FLAG ===
+if [ "$UPDATE_PRD" = true ] && [ -f "PRD.md" ]; then
+  echo ""
+  printf "${BOLD}───── UPDATE PRD ─────${RESET}\n"
+  printf "  ${YELLOW}Updating existing PRD...${RESET}\n"
+
+  mkdir -p "$RALPH_DIR"
+  mkdir -p .claude
+
+  # --- PHASE 1: INTERVIEW (what to add/change) ---
+  echo ""
+  printf "${CYAN}▸ INTERVIEW${RESET}\n"
+
+  echo "# PRD Update Interview" > "$RALPH_DIR/interview.md"
+  echo "" >> "$RALPH_DIR/interview.md"
+
+  question_num=0
+  while true; do
+    question_num=$((question_num + 1))
+
+    interviewer_output=$(claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p \
+      "@PRD.md @.claude/features.json @.ralph/interview.md \
+      You are the INTERVIEWER for a PRD UPDATE. The user wants to add or change features. \
+      Read the EXISTING PRD.md and features.json to understand what already exists. \
+      Read the interview history in .ralph/interview.md. \
+      \
+      Ask ONE question at a time to understand what the user wants to ADD or CHANGE. \
+      \
+      RULES: \
+      - Focus on: new features to add, existing features to modify, scope changes \
+      - ONE question per invocation \
+      - Prefer multiple choice when possible (2-4 options) \
+      - When you have enough info, output DONE \
+      \
+      OUTPUT FORMAT — you MUST output ONLY raw JSON, no markdown, no backticks: \
+      If asking a question with options: \
+      {\"status\":\"QUESTION\",\"question\":\"Your question here?\",\"options\":[\"Option A\",\"Option B\"]} \
+      If asking an open-ended question: \
+      {\"status\":\"QUESTION\",\"question\":\"Your question here?\",\"options\":[]} \
+      If you have enough information: \
+      {\"status\":\"DONE\"}" 2>/dev/null)
+
+    status=$(echo "$interviewer_output" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+    if [ "$status" = "DONE" ]; then
+      printf "  ${GREEN}Interview complete (%d questions)${RESET}\n" "$((question_num - 1))"
+      break
+    fi
+
+    if [ "$status" != "QUESTION" ]; then
+      question_num=$((question_num - 1))
+      continue
+    fi
+
+    question=$(echo "$interviewer_output" | grep -o '"question":"[^"]*"' | head -1 | cut -d'"' -f4)
+    options_raw=$(echo "$interviewer_output" | grep -o '"options":\[[^]]*\]' | head -1 | sed 's/"options"://')
+
+    echo ""
+    printf "  ${BOLD}Q%d: %s${RESET}\n" "$question_num" "$question"
+
+    if [ "$options_raw" != "[]" ] && [ -n "$options_raw" ]; then
+      option_count=0
+      while IFS= read -r opt; do
+        option_count=$((option_count + 1))
+        printf "    ${CYAN}%d)${RESET} %s\n" "$option_count" "$opt"
+      done < <(echo "$options_raw" | tr -d '[]' | sed 's/\",\"/\n/g' | sed 's/^\"//;s/\"$//')
+
+      printf "    ${DIM}%d) Other (type your answer)${RESET}\n" "$((option_count + 1))"
+      printf "\n  > "
+      read -r user_input
+
+      if [[ "$user_input" =~ ^[0-9]+$ ]] && [ "$user_input" -ge 1 ] && [ "$user_input" -le "$option_count" ]; then
+        answer=$(echo "$options_raw" | tr -d '[]' | sed 's/\",\"/\n/g' | sed 's/^\"//;s/\"$//' | sed -n "${user_input}p")
+      else
+        answer="$user_input"
+      fi
+    else
+      printf "\n  > "
+      read -r answer
+    fi
+
+    echo "## Q${question_num}: ${question}" >> "$RALPH_DIR/interview.md"
+    echo "**Answer:** ${answer}" >> "$RALPH_DIR/interview.md"
+    echo "" >> "$RALPH_DIR/interview.md"
+  done
+
+  # --- PHASE 2: PRD UPDATER ---
+  prd_update_attempt=1
+  while true; do
+    echo ""
+    printf "${CYAN}▸ PRD UPDATER${RESET} ${DIM}(attempt $prd_update_attempt)${RESET}\n"
+    step "Updating PRD..."
+
+    local_review_prompt=""
+    if [ "$prd_update_attempt" -gt 1 ] && [ -f "$RALPH_DIR/prd-review.md" ]; then
+      local_review_prompt="PREVIOUS REVIEW FEEDBACK — you MUST address these issues: @.ralph/prd-review.md"
+    fi
+
+    claude --permission-mode bypassPermissions --model "$MODEL_WORKER" -p \
+      "@PRD.md @.claude/features.json @.ralph/interview.md \
+      You are the PRD UPDATER. Read the EXISTING PRD.md, features.json, and the interview notes. \
+      \
+      $local_review_prompt \
+      \
+      Your job is to ADD new sections to the existing PRD and features.json based on the interview. \
+      \
+      RULES: \
+      - KEEP all existing sections in PRD.md unchanged \
+      - KEEP all existing entries in features.json unchanged \
+      - ADD new [PX] sections to PRD.md with the next available ID \
+      - ADD corresponding entries to features.json with passes: false \
+      - If the interview describes CHANGES to existing features, update those sections \
+      - Update the 'Updated' date in PRD.md header to $(date +%Y.%m.%d) \
+      \
+      Do NOT implement any code. ONLY modify PRD.md and .claude/features.json." \
+      > "$RALPH_DIR/prd-updater.log" 2>&1 &
+    wait $!
+    step_done
+
+    # --- PHASE 3: PRD REVIEWER ---
+    step "Reviewing PRD..."
+    claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p \
+      "@PRD.md @.claude/features.json @.ralph/interview.md \
+      You are the PRD REVIEWER. Validate the UPDATED PRD against the interview notes. \
+      \
+      Check: \
+      1. COMPLETENESS — Does the PRD cover everything discussed in the interview? \
+      2. COHERENCE — Do new requirements fit with existing ones? Any contradictions? \
+      3. ACTIONABILITY — Are new requirements specific enough for an implementer? \
+      4. STRUCTURE — Are PX IDs sequential? Does features.json match PRD sections? \
+      5. PRESERVATION — Were existing sections and entries preserved correctly? \
+      \
+      Write your review to .ralph/prd-review.md. \
+      Your file MUST start with exactly one of these lines: \
+      VERDICT: APPROVED \
+      or \
+      VERDICT: CHANGES_REQUESTED \
+      \
+      If CHANGES_REQUESTED, list specific issues that must be fixed. \
+      ONLY write to .ralph/prd-review.md." \
+      > "$RALPH_DIR/prd-reviewer.log" 2>&1 &
+    wait $!
+
+    prd_verdict=$(verdict "$RALPH_DIR/prd-review.md")
+    if grep -q "VERDICT: APPROVED" "$RALPH_DIR/prd-review.md" 2>/dev/null; then
+      step_done "$prd_verdict — ${GREEN}APPROVED${RESET}"
+      break
+    else
+      step_done "$prd_verdict — ${RED}CHANGES REQUESTED${RESET}"
+      print_rejection "PRD" "$RALPH_DIR/prd-review.md"
+      prd_update_attempt=$((prd_update_attempt + 1))
+    fi
+  done
+
+  # --- FINAL APPROVAL ---
+  echo ""
+  echo "─────────────────────────────────────────"
+  cat PRD.md 2>/dev/null
+  echo "─────────────────────────────────────────"
+  echo ""
+
+  printf "  ${BOLD}Approve PRD update?${RESET} [${GREEN}s${RESET}] approve  [${RED}n${RESET}] redo > "
+  read -r prd_choice
+
+  case "$prd_choice" in
+    s|S|y|Y)
+      printf "  ${GREEN}PRD updated and committed.${RESET}\n"
+      git add PRD.md .claude/features.json 2>/dev/null || true
+      git commit -m "docs: update PRD and features.json via ralph PRD update" 2>/dev/null || true
+      ;;
+    *)
+      printf "  ${RED}PRD update rejected. Reverting...${RESET}\n"
+      git checkout PRD.md .claude/features.json 2>/dev/null || true
+      exit 1
+      ;;
+  esac
+
+  echo ""
+fi
+
 # === PRD CREATION ===
 if [ ! -f "PRD.md" ]; then
   echo ""
@@ -905,14 +1103,7 @@ for ((i=1; i<=LOOPS; i++)); do
 
   # Early PRD completion check: if all features pass, stop immediately
   if [ -z "$TASK" ] && [ -f ".claude/features.json" ]; then
-    _all_done=true
-    while IFS= read -r line; do
-      if echo "$line" | grep -q '"passes"[[:space:]]*:[[:space:]]*false'; then
-        _all_done=false
-        break
-      fi
-    done < .claude/features.json
-    if [ "$_all_done" = true ]; then
+    if ! grep -q '"passes"[[:space:]]*:[[:space:]]*false' .claude/features.json; then
       printf "  ${GREEN}All features complete. Nothing to do.${RESET}\n"
       exit 0
     fi
@@ -1201,6 +1392,7 @@ for ((i=1; i<=LOOPS; i++)); do
   FEATURE_BRANCH=""
   [ "$stashed" = true ] && git stash pop 2>/dev/null || true
   step_done
+  clean_ralph  # Prevent stale artifacts from triggering false resume on next iteration
 
   iter_elapsed=$(( $(date +%s) - iter_start ))
   iter_min=$((iter_elapsed / 60))

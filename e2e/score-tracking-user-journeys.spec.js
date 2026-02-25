@@ -163,7 +163,8 @@ test.describe('P2 Score Tracking - User Journeys', () => {
       await expect(page.locator('#mp-draws')).toHaveText('0');
     });
 
-    test('user plays local game that ends in draw', async ({ page }) => {
+    test.skip('user plays local game that ends in draw', async ({ page }) => {
+      // OBSOLETE: With P5 disappearing marks mechanic, draws are impossible after move 5.
       // User selects local multiplayer mode
       await page.locator('#mode-local').click();
 

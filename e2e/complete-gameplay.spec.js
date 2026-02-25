@@ -177,7 +177,8 @@ test.describe('P0: Complete Gameplay Flows', () => {
   });
 
   test.describe('Draw Detection', () => {
-    test('should detect a draw when board is full with no winner', async ({ page }) => {
+    test.skip('should detect a draw when board is full with no winner', async ({ page }) => {
+      // OBSOLETE: With P5 disappearing marks mechanic, draws are impossible after move 5.
       // Play out a draw scenario (respecting turn order):
       // Final board:
       // X O X
@@ -203,7 +204,8 @@ test.describe('P0: Complete Gameplay Flows', () => {
       expect(gameState.winner).toBe(null);
     });
 
-    test('should detect draw even with different move order', async ({ page }) => {
+    test.skip('should detect draw even with different move order', async ({ page }) => {
+      // OBSOLETE: With P5 disappearing marks mechanic, draws are impossible after move 5.
       // Another draw pattern (respecting turn order):
       // Final board:
       // X X O
@@ -259,7 +261,8 @@ test.describe('P0: Complete Gameplay Flows', () => {
       await expect(page.locator('.cell[data-index="2"]')).toHaveText('');
     });
 
-    test('should not allow moves after draw', async ({ page }) => {
+    test.skip('should not allow moves after draw', async ({ page }) => {
+      // OBSOLETE: With P5 disappearing marks mechanic, draws are impossible after move 5.
       // Play to draw (same pattern as draw test)
       await page.locator('.cell[data-index="0"]').click(); // X
       await page.locator('.cell[data-index="1"]').click(); // O
@@ -337,7 +340,8 @@ test.describe('P0: Complete Gameplay Flows', () => {
       await expect(page.locator('.cell[data-index="4"]')).toHaveText('X');
     });
 
-    test('should reset board after draw', async ({ page }) => {
+    test.skip('should reset board after draw', async ({ page }) => {
+      // OBSOLETE: With P5 disappearing marks mechanic, draws are impossible after move 5.
       // Play to draw (same pattern as draw test)
       await page.locator('.cell[data-index="0"]').click(); // X
       await page.locator('.cell[data-index="1"]').click(); // O
@@ -461,7 +465,8 @@ test.describe('P0: Complete Gameplay Flows', () => {
       await expect(page.locator('#status')).toHaveText('Player O wins!');
     });
 
-    test('should play a complete game ending in draw', async ({ page }) => {
+    test.skip('should play a complete game ending in draw', async ({ page }) => {
+      // OBSOLETE: With P5 disappearing marks mechanic, draws are impossible after move 5.
       // Play to draw (same pattern as draw test)
       await page.locator('.cell[data-index="0"]').click(); // X
       await page.locator('.cell[data-index="1"]').click(); // O

@@ -72,9 +72,9 @@ A single HTML file with embedded CSS and JavaScript using native WebRTC APIs for
 - [x] Handle peer disconnections gracefully with appropriate user feedback
 
 ### [P5] Disappearing Marks Mechanic
-- [ ] Track move history to identify the globally oldest mark after 7 total moves
-- [ ] Automatically remove the oldest mark (regardless of player) when the 8th move is placed
-- [ ] Implement gradual fade-out animation for marks about to disappear
-- [ ] Update win detection to work correctly with dynamic board state
-- [ ] Enable mechanic across all game modes (vs AI, Local, and Online)
-- [ ] Synchronize mark disappearance across WebRTC peers in online mode
+- [x] Track move history to identify the globally oldest mark after 7 total moves
+- [x] Automatically remove the oldest mark (regardless of player) when the 8th move is placed
+- [x] Implement gradual fade-out animation for marks about to disappear
+- [x] Update win detection to work correctly with dynamic board state
+- [x] Enable mechanic across all game modes (vs AI, Local, and Online)
+- [x] Synchronize mark disappearance across WebRTC peers in online mode

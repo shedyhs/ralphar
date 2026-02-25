@@ -240,7 +240,8 @@ test.describe('P2 Score Tracking', () => {
       expect(scores.multiplayer.oWins).toBe(1);
     });
 
-    test('draw increments multiplayer.draws', async ({ page }) => {
+    test.skip('draw increments multiplayer.draws', async ({ page }) => {
+      // OBSOLETE: With P5 disappearing marks mechanic, draws are impossible after move 5.
       await page.evaluate(() => localStorage.removeItem('ticTacToeScores'));
       await page.reload();
 
