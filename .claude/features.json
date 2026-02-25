@@ -143,7 +143,7 @@
     "id": "P5",
     "title": "Disappearing Marks Mechanic",
     "passes": false,
-    "summary": "Dynamic gameplay mechanic where the oldest mark disappears after 5 total moves are placed, limiting the board to 5 marks at any time",
+    "summary": "Dynamic gameplay mechanic where the oldest mark disappears after 7 total moves are placed, limiting the board to 7 marks at any time",
     "filesModified": [],
     "details": []
   }
