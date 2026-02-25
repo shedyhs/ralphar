@@ -932,9 +932,9 @@
 
             _resetGameState();
 
-            // AI first move: 150ms animation + 250ms delay = 400ms total
+            // AI first move: 150ms animation + 300ms delay = 450ms total
             if (game.mode === 'ai' && game.aiSymbol === 'X') {
-                setTimeout(makeAIMove, 400);
+                setTimeout(makeAIMove, 450);
             }
         }
 

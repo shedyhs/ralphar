@@ -210,8 +210,8 @@ test.describe('P1: AI User Journeys - End to End', () => {
             // User clicks New Game
             await page.locator('#new-game').click();
 
-            // Wait for AI to make first move (AI is X)
-            await page.waitForTimeout(400);
+            // Wait for AI to make first move (AI is X) - 150ms animation + 300ms delay = 450ms
+            await page.waitForTimeout(500);
 
             // AI should have made first move again
             const board = await page.evaluate(() => game.board);
