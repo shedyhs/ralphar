@@ -900,14 +900,14 @@ for ((i=1; i<=LOOPS; i++)); do
   fi
   FEATURE_BRANCH="feature/${branch_slug}"
 
-  # Clean up stale branch from previous failed run
-  git checkout main 2>/dev/null || true
-  if git rev-parse --verify "$FEATURE_BRANCH" >/dev/null 2>&1; then
-    git branch -D "$FEATURE_BRANCH" 2>/dev/null || true
-  fi
-
+  # Create feature branch or switch to it if it already exists
   step "Creating branch..."
-  git checkout -b "$FEATURE_BRANCH"
+  if git rev-parse --verify "$FEATURE_BRANCH" >/dev/null 2>&1; then
+    git checkout "$FEATURE_BRANCH"
+  else
+    git checkout main 2>/dev/null || true
+    git checkout -b "$FEATURE_BRANCH"
+  fi
   step_done "$FEATURE_BRANCH"
 
   # === REGISTER TASK ===

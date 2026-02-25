@@ -58,10 +58,10 @@ A single HTML file with embedded CSS and JavaScript using native WebRTC APIs for
 - [x] Add button to reset all scores
 
 ### [P3] Animations
-- [ ] Animate cell marks (X/O) appearing with CSS transitions when placed
-- [ ] Highlight winning line with visual animation effect
+- [x] Animate cell marks (X/O) appearing with CSS transitions when placed
+- [x] Highlight winning line with visual animation effect
 - [ ] Add smooth transitions for game state changes (new game, reset board)
-- [ ] Animate score counter updates
+- [x] Animate score counter updates
 
 ### [P4] Peer-to-Peer Multiplayer
 - [ ] Implement WebRTC data channel for direct peer-to-peer connection

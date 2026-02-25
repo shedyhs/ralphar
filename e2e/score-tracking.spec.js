@@ -37,12 +37,11 @@ test.describe('P2 Score Tracking', () => {
   });
 
   test.describe('Score Display UI', () => {
-    test('score display elements exist in game container', async ({ page }) => {
+    test('score display container exists in game container', async ({ page }) => {
       await page.locator('#mode-local').click();
 
+      // Verify parent container is visible (individual score row visibility tested separately)
       await expect(page.locator('#score-display')).toBeVisible();
-      await expect(page.locator('#sp-scores')).toBeVisible();
-      await expect(page.locator('#mp-scores')).toBeVisible();
     });
 
     test('single player scores show correct labels', async ({ page }) => {

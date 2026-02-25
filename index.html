@@ -62,6 +62,73 @@
         .cell.o {
             color: #0f9b0f;
         }
+        /* Mark appearance animation */
+        @keyframes markAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.3);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .cell.animate-in {
+            animation: markAppear 0.2s ease-out forwards;
+        }
+
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .cell.animate-in {
+                animation: none;
+            }
+        }
+        /* Score update animation */
+        @keyframes scorePop {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.4);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .updated {
+            animation: scorePop 0.3s ease-out;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .updated {
+                animation: none;
+            }
+        }
+        /* Winning line highlight */
+        @keyframes winningPulse {
+            0%, 100% {
+                background-color: #0f3460;
+                box-shadow: none;
+            }
+            50% {
+                background-color: #1a4a7a;
+                box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+            }
+        }
+
+        .cell.winning {
+            animation: winningPulse 0.8s ease-in-out 3;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .cell.winning {
+                animation: none;
+                background-color: #1a4a7a;
+                box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+            }
+        }
         .status {
             font-size: 1.25rem;
             min-height: 2rem;
@@ -252,31 +319,59 @@
             }
         }
 
+        // Animate score update
+        function animateScoreUpdate(elementId) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+            // Remove class first to allow re-triggering
+            element.classList.remove('updated');
+
+            // Force reflow to reset animation
+            void element.offsetWidth;
+
+            element.classList.add('updated');
+
+            // Cleanup after animation completes
+            element.addEventListener('animationend', () => {
+                element.classList.remove('updated');
+            }, { once: true });
+        }
+
         // Record score when game ends
         function recordScore() {
             if (!game.isGameOver) return;
 
+            let elementIdToAnimate = null;
+
             if (game.mode === 'ai') {
-                // Single player: track from player's perspective
                 if (game.winner === game.playerSymbol) {
                     scores.singlePlayer.wins++;
+                    elementIdToAnimate = 'sp-wins';
                 } else if (game.winner === game.aiSymbol) {
                     scores.singlePlayer.losses++;
+                    elementIdToAnimate = 'sp-losses';
                 } else {
                     scores.singlePlayer.draws++;
+                    elementIdToAnimate = 'sp-draws';
                 }
             } else if (game.mode === 'local') {
-                // Multiplayer: track by symbol
                 if (game.winner === 'X') {
                     scores.multiplayer.xWins++;
+                    elementIdToAnimate = 'mp-x-wins';
                 } else if (game.winner === 'O') {
                     scores.multiplayer.oWins++;
+                    elementIdToAnimate = 'mp-o-wins';
                 } else {
                     scores.multiplayer.draws++;
+                    elementIdToAnimate = 'mp-draws';
                 }
             }
 
             saveScores();
+            if (elementIdToAnimate) {
+                animateScoreUpdate(elementIdToAnimate);
+            }
             updateScoreDisplay();
         }
 
@@ -311,6 +406,27 @@
             return null;
         }
 
+        // Get winning line indices
+        function getWinningLine() {
+            for (const line of WINNING_LINES) {
+                const [a, b, c] = line;
+                if (game.board[a] &&
+                    game.board[a] === game.board[b] &&
+                    game.board[a] === game.board[c]) {
+                    return line;
+                }
+            }
+            return null;
+        }
+
+        // Highlight winning line cells
+        function highlightWinningLine(indices) {
+            if (!indices) return;
+            indices.forEach(index => {
+                cells[index].classList.add('winning');
+            });
+        }
+
         // Check for draw
         function checkDraw() {
             return game.board.every(cell => cell !== null);
@@ -321,7 +437,10 @@
             cells.forEach((cell, index) => {
                 const value = game.board[index];
                 cell.textContent = value || '';
-                cell.className = 'cell' + (value ? ` ${value.toLowerCase()}` : '');
+                const wasEmpty = !cell.classList.contains('x') && !cell.classList.contains('o');
+                const hasNewMark = value && wasEmpty;
+                const isWinning = cell.classList.contains('winning');
+                cell.className = 'cell' + (value ? ` ${value.toLowerCase()}` : '') + (hasNewMark ? ' animate-in' : '') + (isWinning ? ' winning' : '');
             });
 
             if (game.winner) {
@@ -348,6 +467,7 @@
             if (winner) {
                 game.winner = winner;
                 game.isGameOver = true;
+                highlightWinningLine(getWinningLine());
                 recordScore();
             } else if (checkDraw()) {
                 game.isGameOver = true;
@@ -371,6 +491,7 @@
             game.currentPlayer = 'X';
             game.isGameOver = false;
             game.winner = null;
+            cells.forEach(cell => cell.classList.remove('winning'));
             updateUI();
 
             // Trigger AI first move if AI is X
