@@ -298,6 +298,13 @@ run_validator() {
   or \
   VERDICT: CHANGES_REQUESTED \
   \
+  If CHANGES_REQUESTED, you MUST also include this line somewhere in the file: \
+  NEEDS_RE_EXPLORATION: YES \
+  or \
+  NEEDS_RE_EXPLORATION: NO \
+  (YES = the plan lacks codebase context that requires re-exploration. \
+   NO = the plan has sufficient context but the plan itself needs changes.) \
+  \
   If CHANGES_REQUESTED, list specific issues that must be fixed. \
   Be concise and actionable. Do NOT rewrite the plan yourself. \
   ONLY write to .ralph/validation-${id}.md. Do NOT modify any other file." \
