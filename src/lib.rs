@@ -1,5 +1,7 @@
 //! Ralph TUI - Interactive pipeline interface
 
+pub mod terminal;
+
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
