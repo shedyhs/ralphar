@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod event;
+pub mod event_handler;
 pub mod terminal;
 
 pub fn version() -> &'static str {
