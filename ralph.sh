@@ -290,6 +290,40 @@ run_plan_writer() {
   wait $!
 }
 
+run_plan_patcher() {
+  local checkpoint_prompt=""
+  if [ -f "$RALPH_DIR/checkpoint-plan-patcher.md" ]; then
+    checkpoint_prompt="CONTINUE FROM CHECKPOINT: Read @.ralph/checkpoint-plan-patcher.md for your previous progress. \
+    Continue patching the plan from where you left off."
+  fi
+
+  echo "plan-patcher" > "$RALPH_DIR/current-agent"
+  claude --permission-mode bypassPermissions --model "$MODEL_LEAD" -p "@PRD.md @.claude/features.json @.ralph/context.md @.ralph/plan.md \
+  @.ralph/validation-a.md @.ralph/validation-b.md @.ralph/validation-c.md \
+  You are the PLAN PATCHER. Your job: \
+  1. Read the EXISTING plan in .ralph/plan.md carefully. \
+  2. Read ALL validator feedback in .ralph/validation-{a,b,c}.md. \
+  3. MODIFY the existing plan to address every issue raised by validators. \
+     - KEEP sections that were NOT criticized — do not rewrite them. \
+     - ONLY change sections that validators flagged as problematic. \
+     - Maintain the same structure and task numbering where possible. \
+  4. Overwrite .ralph/plan.md with the updated plan. \
+  \
+  $checkpoint_prompt \
+  \
+  Do NOT explore the codebase — all context is in .ralph/context.md. \
+  Do NOT implement any code. ONLY modify .ralph/plan.md. \
+  \
+  CHECKPOINT: If you cannot complete the patching, save a detailed progress summary \
+  to .ralph/checkpoint-plan-patcher.md including: \
+  - What you have patched so far \
+  - What sections remain to patch \
+  - Key decisions made and why \
+  This allows a new session to continue where you left off." \
+  > "$RALPH_DIR/plan-patcher.log" 2>&1 &
+  wait $!
+}
+
 run_validator() {
   local id=$1
   local focus=$2
