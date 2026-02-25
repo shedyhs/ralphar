@@ -45,11 +45,12 @@ A full interactive TUI application built with Rust and ratatui that provides a s
 - [x] Create basic CI pipeline for builds and tests
 
 ### [P1] Core TUI framework
-- [ ] Implement terminal initialization and cleanup with crossterm backend
-- [ ] Create application state management and event loop with tokio
-- [ ] Design keyboard event handling system with configurable bindings
-- [ ] Implement graceful shutdown and error recovery
-- [ ] Add basic layout system with resizable panels
+- [x] Implement terminal initialization and cleanup with crossterm backend
+- [x] Create application state management and event loop with tokio
+- [x] Design keyboard event handling system with configurable bindings
+      *(Note: P1 implements hardcoded bindings; config file loading deferred to future phase)*
+- [x] Implement graceful shutdown and error recovery
+- [x] Add basic layout system with resizable panels
 
 ### [P2] Pipeline visualization
 - [ ] Parse ralph.sh pipeline configuration files
